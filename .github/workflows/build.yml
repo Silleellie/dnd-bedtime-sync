@@ -48,7 +48,31 @@ jobs:
 
       # Create APK Release
       - name: Build apk release project (APK) - ${{ env.main_project_module }} module
-        run: ./gradlew assemble
+        run: ./gradlew assembleRelease
+      
+      # Sign APKs
+      - name: Sign Mobile APK with keystore
+        uses: r0adkll/sign-android-release@v1
+        id: sign_mobile_app
+        with:
+          releaseDirectory: ${{ env.mobile_project_module }}/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.KEY_STORE }}
+          alias: ${{ secrets.KEY_STORE_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASS }}
+          keyPassword: ${{ secrets.KEY_STORE_PASS }}
+        env:
+          BUILD_TOOLS_VERSION: "30.0.3"
+      - name: Sign Wear APK with keystore
+        uses: r0adkll/sign-android-release@v1
+        id: sign_wear_app
+        with:
+          releaseDirectory: ${{ env.wear_project_module }}/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.KEY_STORE }}
+          alias: ${{ secrets.KEY_STORE_ALIAS }}
+          keyStorePassword: ${{ secrets.KEY_STORE_PASS }}
+          keyPassword: ${{ secrets.KEY_STORE_PASS }}
+        env:
+          BUILD_TOOLS_VERSION: "30.0.3"
 
       # Upload Artifact Build
       # Noted For Output [main_project_module]/build/outputs/apk/release/
@@ -56,9 +80,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - Mobile - ${{ env.repository_name }} - APK Mobile release generated
-          path: ${{ env.mobile_project_module }}/build/outputs/apk/release
+          path: ${{steps.sign_mobile_app.outputs.signedReleaseFile}}
       - name: Upload APK Wear Release - ${{ env.repository_name }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.date_today }} - ${{ env.playstore_name }} - Wear - ${{ env.repository_name }} - APK Wear release generated
-          path: ${{ env.wear_project_module }}/build/outputs/apk/release
+          path: ${{steps.sign_wear_app.outputs.signedReleaseFile}}
