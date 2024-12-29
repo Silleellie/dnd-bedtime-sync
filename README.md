@@ -105,6 +105,10 @@ There are only two flags which the _Power saver mode_ of this app does not enabl
 
 Pull requests are welcome!
 
+### Developing Prerequisites
+
+- You must setup a `debugging` keystore, the password and alias can be anything, but Play Services requires that both the wearable app and mobile app are **signed with the same keystore**.
+
 ## Note
 
 If you are unable to "Allow Notification Access" to the mobile app and it is faded, go to Settings -> Apps -> Find and open the DND Sync app -> Click the 3 dots on top right and grant "Allow Restricted Settings" access. Now you'll be able to grant the Notification access to mobile app.
