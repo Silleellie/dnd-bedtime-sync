@@ -1,63 +1,66 @@
-package it.silleellie.dndsync;
+package it.silleellie.dndsync
 
-import android.app.NotificationManager;
-import android.content.Context;
-import android.content.SharedPreferences;
-import android.util.Log;
+import android.app.NotificationManager
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
+import androidx.preference.PreferenceManager
+import com.google.android.gms.wearable.DataMapItem
+import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.WearableListenerService
+import it.silleellie.dndsync.shared.WearSignal
+import org.apache.commons.lang3.SerializationUtils
 
-import androidx.annotation.NonNull;
-import androidx.preference.PreferenceManager;
+class DNDSyncListenerService : WearableListenerService() {
+    override fun onMessageReceived(messageEvent: MessageEvent) {
+        Log.d(TAG, "onMessageReceived: $messageEvent")
 
-import com.google.android.gms.wearable.MessageEvent;
-import com.google.android.gms.wearable.WearableListenerService;
+        if (messageEvent.path.equals(URL_OPEN_PATH, ignoreCase = true)) {
+            val url = "https://github.com/Silleellie/dnd-bedtime-sync#watch"
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } else if (messageEvent.path.equals(DND_SYNC_MESSAGE_PATH, ignoreCase = true)) {
+            val prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
-import org.apache.commons.lang3.SerializationUtils;
+            val data = messageEvent.getData()
+            val wearSignal = SerializationUtils.deserialize<WearSignal>(data)
+            val dndStateWear = wearSignal.dndState
 
-import it.silleellie.dndsync.shared.WearSignal;
-
-public class DNDSyncListenerService extends WearableListenerService {
-    private static final String TAG = "DNDSyncListenerService";
-    private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
-
-    @Override
-    public void onMessageReceived (@NonNull MessageEvent messageEvent) {
-
-        if (messageEvent.getPath().equalsIgnoreCase(DND_SYNC_MESSAGE_PATH)) {
-
-            Log.d(TAG, "received path: " + DND_SYNC_MESSAGE_PATH);
-
-            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-
-            byte[] data = messageEvent.getData();
-            WearSignal wearSignal = SerializationUtils.deserialize(data);
-            int dndStateWear = wearSignal.dndState;
-
-            Log.d(TAG, "dndStateWear: " + dndStateWear);
+            Log.d(TAG, "dndStateWear: $dndStateWear")
 
             // get dnd state
-            NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-            int currentDndState = mNotificationManager.getCurrentInterruptionFilter();
+            val mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            val currentDndState = mNotificationManager.getCurrentInterruptionFilter()
 
-            Log.d(TAG, "currentDndState: " + currentDndState);
+            Log.d(TAG, "currentDndState: $currentDndState")
             if (currentDndState < 0 || currentDndState > 4) {
-                Log.d(TAG, "Current DND state it's weird, should be in range [0,4]");
+                Log.d(TAG, "Current DND state it's weird, should be in range [0,4]")
             }
 
-            boolean shouldSync = prefs.getBoolean("watch_dnd_sync_key", false);
+            val shouldSync = prefs.getBoolean("watch_dnd_sync_key", false)
 
             if (currentDndState != dndStateWear && shouldSync) {
-                Log.d(TAG, "currentDndState != dndStateWear: " + currentDndState + " != " + dndStateWear);
+                Log.d(
+                    TAG,
+                    "currentDndState != dndStateWear: $currentDndState != $dndStateWear"
+                )
                 if (mNotificationManager.isNotificationPolicyAccessGranted()) {
-                    mNotificationManager.setInterruptionFilter(dndStateWear);
-                    Log.d(TAG, "DND set to " + dndStateWear);
+                    mNotificationManager.setInterruptionFilter(dndStateWear)
+                    Log.d(TAG, "DND set to $dndStateWear")
                 } else {
-                    Log.d(TAG, "attempting to set DND but access not granted");
+                    Log.d(TAG, "attempting to set DND but access not granted")
                 }
             }
-
         } else {
-            super.onMessageReceived(messageEvent);
+            super.onMessageReceived(messageEvent)
         }
     }
 
+    companion object {
+        private const val TAG = "DNDSyncListenerService"
+        private const val DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync"
+        private const val URL_OPEN_PATH = "/open_link"
+    }
 }

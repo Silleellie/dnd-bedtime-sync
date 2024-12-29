@@ -1,20 +1,35 @@
-package it.silleellie.dndsync;
+package it.silleellie.dndsync
 
-import android.os.Bundle;
+import android.os.Bundle
+import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.colorResource
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.wear.compose.material.Colors
+import androidx.wear.compose.material.MaterialTheme
 
-import androidx.appcompat.app.AppCompatActivity;
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
+        super.onCreate(savedInstanceState)
 
-public class MainActivity extends AppCompatActivity {
+        setContent {
+            val wearColorPalette = Colors(
+                primary = colorResource(R.color.primaryColor),
+                primaryVariant = colorResource(R.color.primaryLightColor),
+                secondary = colorResource(R.color.secondaryColor),
+                secondaryVariant = colorResource(R.color.secondaryLightColor),
+                background = Color.Black,
+            )
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
-        if (savedInstanceState == null) {
-            getSupportFragmentManager()
-                    .beginTransaction()
-                    .replace(R.id.settings, new MainFragment())
-                    .commit();
+            MaterialTheme(
+                colors = wearColorPalette,
+            ) {
+                MainScreen(this@MainActivity)
+            }
         }
     }
 }

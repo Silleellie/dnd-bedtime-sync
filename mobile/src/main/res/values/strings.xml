@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">DNDSync</string>
+    <string name="app_name">DND Sync</string>
 
     <!-- Preference Titles -->
     <string name="permission_header">Permissions</string>
@@ -31,4 +31,9 @@
     <string name="dnd_permission_allowed">DND-Bedtime access granted</string>
     <string name="dnd_permission_not_allowed">DND-Bedtime access denied</string>
 
+    <string name="notifications_permission_title">Notification Permission</string>
+    <string name="notifications_permission_allowed">Notification access granted</string>
+    <string name="notifications_permission_not_allowed">Notification access denied</string>
+    <string name="about_notification_permission_desc">This app reads and changes the current state of Digital Wellbeing\'s Bedtime Mode and DND state using notifications permission, allowing it to be synced to your watch.</string>
+    <string name="about_notification_permission_title">About Notification Read Permission</string>
 </resources>
