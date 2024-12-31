@@ -7,12 +7,14 @@ import androidx.preference.PreferenceManager
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
 import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.tasks.Tasks.await
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.Wearable
 import it.silleellie.dndsync.shared.PhoneSignal
 import org.apache.commons.lang3.SerializationUtils
 import java.util.concurrent.ExecutionException
+import it.silleellie.dndsync.shared.PreferenceKeys
 
 
 class DNDNotificationService : NotificationListenerService() {
@@ -24,15 +26,15 @@ class DNDNotificationService : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (isWindDownNotification(sbn)) {
             val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-            val syncBedTime = prefs.getBoolean("bedtime_sync_key", true)
+            val syncBedTime = prefs.getBoolean(PreferenceKeys.BedtimeSync.key, PreferenceKeys.BedtimeSync.defaultValue)
 
             if (syncBedTime) {
                 // depending on the number of actions that can be done, bedtime mode
                 // could be in "pause mode" or "on mode":
                 // * If it is in "pause" mode, there is only one action ("Restart bedtime")
                 // * If it is in "on" mode, there are two actions possible ("Pause it" and "De-activate it")
-                val is_on = sbn.getNotification().actions.size == 2
-                val is_paused = sbn.getNotification().actions.size == 1
+                val is_on = sbn.notification.actions.size == 2
+                val is_paused = sbn.notification.actions.size == 1
 
                 if (is_on) {
                     // 5 means bedtime ON
@@ -53,7 +55,7 @@ class DNDNotificationService : NotificationListenerService() {
         // if notifications is removed, we want surely to disable bedtime mode
         if (isWindDownNotification(sbn)) {
             val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-            val syncBedTime = prefs.getBoolean("bedtime_sync_key", true)
+            val syncBedTime = prefs.getBoolean(PreferenceKeys.BedtimeSync.key, PreferenceKeys.BedtimeSync.defaultValue)
 
             if (syncBedTime) {
                 // 6 means bedtime OFF
@@ -68,7 +70,8 @@ class DNDNotificationService : NotificationListenerService() {
         Log.d(TAG, "interruption filter changed to " + interruptionFilter)
 
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
-        val syncDnd = prefs.getBoolean("dnd_sync_key", true)
+        val syncDnd = prefs.getBoolean(PreferenceKeys.DndSync.key, PreferenceKeys.DndSync.defaultValue)
+        Log.d(TAG, "dnd sync is " + syncDnd)
 
         if (syncDnd) {
             Thread(Runnable { sendDNDSync(PhoneSignal(interruptionFilter, prefs)) }).start()
@@ -82,7 +85,7 @@ class DNDNotificationService : NotificationListenerService() {
 
         val capabilityInfo: CapabilityInfo
         try {
-            capabilityInfo = Tasks.await<CapabilityInfo>(
+            capabilityInfo = await<CapabilityInfo>(
                 Wearable.getCapabilityClient(this).getCapability(
                     DND_SYNC_CAPABILITY_NAME, CapabilityClient.FILTER_REACHABLE
                 )
@@ -99,31 +102,26 @@ class DNDNotificationService : NotificationListenerService() {
 
         // send request to all reachable nodes
         // capabilityInfo has the reachable nodes with the dnd sync capability
-        val connectedNodes = capabilityInfo.getNodes()
+        val connectedNodes = capabilityInfo.nodes
         if (connectedNodes.isEmpty()) {
             // Unable to retrieve node with transcription capability
             Log.d(TAG, "Unable to retrieve node with sync capability!")
         } else {
+            val data = SerializationUtils.serialize(phoneSignal)
+            val messageClient = Wearable.getMessageClient(this)
             for (node in connectedNodes) {
-                if (node.isNearby()) {
-                    val data = SerializationUtils.serialize(phoneSignal)
-                    val sendTask =
-                        Wearable.getMessageClient(this)
-                            .sendMessage(node.getId(), DND_SYNC_MESSAGE_PATH, data)
-
-                    sendTask.addOnSuccessListener(OnSuccessListener { integer: Int? ->
-                        Log.d(
-                            TAG,
-                            "send successful! Receiver node id: " + node.getId()
-                        )
-                    })
-
-                    sendTask.addOnFailureListener(OnFailureListener { e: Exception? ->
-                        Log.d(
-                            TAG,
-                            "send failed! Receiver node id: " + node.getId()
-                        )
-                    })
+                try {
+                    val result = await(messageClient.sendMessage(node.id, DND_SYNC_MESSAGE_PATH, data))
+                    Log.d(
+                        TAG,
+                        "send successful! Receiver node id: ${node.id} (data: ${result.toString()})"
+                    )
+                } catch (e: ExecutionException) {
+                    e.printStackTrace()
+                    Log.e(TAG, "execution error while sending message", e)
+                    return
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
                 }
             }
         }

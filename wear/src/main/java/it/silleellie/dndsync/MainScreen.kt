@@ -57,6 +57,13 @@ fun MainScreen(context: Context) {
             .getCapability("dnd_sync", CapabilityClient.FILTER_REACHABLE)
             .await()
         isConnected = capabilityInfo.nodes.isNotEmpty()
+
+        Wearable.getCapabilityClient(context).addListener(
+            {
+                isConnected = it.nodes.isNotEmpty()
+            },
+            "dnd_sync"
+        )
     }
 
     Page {

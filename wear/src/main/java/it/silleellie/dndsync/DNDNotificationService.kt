@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
 import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.tasks.Tasks.await
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.Wearable
@@ -57,7 +58,7 @@ class DNDNotificationService : NotificationListenerService() {
 
         var capabilityInfo: CapabilityInfo? = null
         try {
-            capabilityInfo = Tasks.await<CapabilityInfo?>(
+            capabilityInfo = await<CapabilityInfo?>(
                 Wearable.getCapabilityClient(this).getCapability(
                     DND_SYNC_CAPABILITY_NAME, CapabilityClient.FILTER_REACHABLE
                 )
@@ -79,28 +80,21 @@ class DNDNotificationService : NotificationListenerService() {
             // Unable to retrieve node with transcription capability
             Log.d(TAG, "Unable to retrieve node with sync capability!")
         } else {
+            val data = SerializationUtils.serialize(wearSignal)
+            val messageClient = Wearable.getMessageClient(this)
             for (node in connectedNodes) {
-                if (node.isNearby()) {
-                    val data = SerializationUtils.serialize(wearSignal)
-                    val sendTask =
-                        Wearable.getMessageClient(this)
-                            .sendMessage(node.getId(), DND_SYNC_MESSAGE_PATH, data)
-
-                    sendTask.addOnSuccessListener(OnSuccessListener { integer: Int? ->
-                        Log.d(
-                            TAG,
-                            "send successful! Receiver node id: " + node.getId()
-                        )
-                    }
+                try {
+                    val result = await(
+                        messageClient.sendMessage(node.id, DND_SYNC_MESSAGE_PATH, data)
                     )
 
-                    sendTask.addOnFailureListener(OnFailureListener { e: Exception? ->
-                        Log.d(
-                            TAG,
-                            "send failed! Receiver node id: " + node.getId()
-                        )
-                    }
-                    )
+                    Log.d(TAG, "message sent to ${node.id}: $result")
+                } catch (e: ExecutionException) {
+                    e.printStackTrace()
+                    Log.e(TAG, "execution error while sending message", e)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                    Log.e(TAG, "interruption error while sending message", e)
                 }
             }
         }

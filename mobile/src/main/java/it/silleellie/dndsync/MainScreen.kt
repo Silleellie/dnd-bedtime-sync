@@ -60,6 +60,7 @@ fun MainScreen(context: Context) {
     val dndPermissionGranted by viewModel.dndPermissionGranted.collectAsState()
     val notificationState by viewModel.notificationState.collectAsState()
     val dndSync by viewModel.dndSync.collectAsState()
+    val connectivityState by viewModel.connectivityState.collectAsState()
     val permissionsGranted = dndPermissionGranted && notificationState
     var isDialogOpen by remember { mutableStateOf(false) }
 
@@ -269,6 +270,24 @@ fun MainScreen(context: Context) {
                     },
                     enabled = !notificationState,
                     checked = notificationState
+                )
+                ConfigurationItem(
+                    icon = {
+                        Icon(
+                            painterResource(
+                                if (connectivityState == true) R.drawable.watch_check
+                                else R.drawable.watch
+                            ),
+                            contentDescription = "Connectivity"
+                        )
+                    },
+                    leadingText = R.string.connectivity_state_title,
+                    supportingText = if (connectivityState == true) R.string.connectivity_state_connected
+                    else R.string.connectivity_state_disconnected,
+                    enabled = true,
+                    onCheckedChange = {
+                        viewModel.updateConnectivityState()
+                    }
                 )
             }
         }

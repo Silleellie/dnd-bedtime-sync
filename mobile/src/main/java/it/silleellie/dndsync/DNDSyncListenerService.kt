@@ -8,6 +8,7 @@ import androidx.preference.PreferenceManager
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
+import it.silleellie.dndsync.shared.PreferenceKeys
 import it.silleellie.dndsync.shared.WearSignal
 import org.apache.commons.lang3.SerializationUtils
 
@@ -24,7 +25,7 @@ class DNDSyncListenerService : WearableListenerService() {
         } else if (messageEvent.path.equals(DND_SYNC_MESSAGE_PATH, ignoreCase = true)) {
             val prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
-            val data = messageEvent.getData()
+            val data = messageEvent.data
             val wearSignal = SerializationUtils.deserialize<WearSignal>(data)
             val dndStateWear = wearSignal.dndState
 
@@ -36,10 +37,10 @@ class DNDSyncListenerService : WearableListenerService() {
 
             Log.d(TAG, "currentDndState: $currentDndState")
             if (currentDndState < 0 || currentDndState > 4) {
-                Log.d(TAG, "Current DND state it's weird, should be in range [0,4]")
+                Log.d(TAG, "Current DND state is not valid, should be in range [0,4]")
             }
 
-            val shouldSync = prefs.getBoolean("watch_dnd_sync_key", false)
+            val shouldSync = prefs.getBoolean(PreferenceKeys.WatchDndSync.key, PreferenceKeys.WatchDndSync.defaultValue)
 
             if (currentDndState != dndStateWear && shouldSync) {
                 Log.d(

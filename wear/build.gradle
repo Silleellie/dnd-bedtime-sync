@@ -62,7 +62,7 @@ dependencies {
     // Horologist
     implementation(libs.horologist.compose.layout)
 
-    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1"
+    implementation libs.kotlinx.coroutines.play.services
     implementation(libs.androidx.core.splashscreen)
     implementation 'com.google.android.gms:play-services-wearable:19.0.0'
     implementation 'androidx.percentlayout:percentlayout:1.0.0'

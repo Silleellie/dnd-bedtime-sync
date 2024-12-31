@@ -5,11 +5,16 @@ import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.Wearable
+import it.silleellie.dndsync.shared.PreferenceKeys
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 // ViewModel to manage states and logic
 class MainViewModel(val app: Application) : AndroidViewModel(app) {
@@ -44,6 +49,10 @@ class MainViewModel(val app: Application) : AndroidViewModel(app) {
     private val _watchVibrate = MutableStateFlow(false)
     val watchVibrate: StateFlow<Boolean> = _watchVibrate
 
+    // Connectivity state
+    private val _connectivityState = MutableStateFlow(false)
+    val connectivityState: StateFlow<Boolean> = _connectivityState
+
     init {
         // Update power save state based on dndAsBedtime or bedtimeSync
         viewModelScope.launch {
@@ -61,6 +70,28 @@ class MainViewModel(val app: Application) : AndroidViewModel(app) {
 
         _dndPermissionGranted.value = checkDNDPermission()
         _notificationState.value = isNotificationListenerEnabled(app)
+        updateConnectivityState()
+    }
+
+    fun updateConnectivityState() {
+        viewModelScope.launch {
+            _connectivityState.value = getConnectivityState()
+            Wearable.getCapabilityClient(app).addListener(
+                {
+                    updateConnectivityState()
+                },
+                "dnd_sync"
+            )
+        }
+    }
+
+    suspend fun getConnectivityState(): Boolean {
+        val capabilityInfo = Wearable.getCapabilityClient(app).getCapability(
+            "dnd_sync",
+            CapabilityClient.FILTER_REACHABLE
+        ).await()
+
+        return capabilityInfo.nodes.isNotEmpty()
     }
 
 
@@ -120,7 +151,8 @@ class MainViewModel(val app: Application) : AndroidViewModel(app) {
 
     fun isNotificationListenerEnabled(context: Context): Boolean {
         val packageName = context.packageName
-        val enabledListeners = Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
+        val enabledListeners =
+            Settings.Secure.getString(context.contentResolver, "enabled_notification_listeners")
         return enabledListeners != null && enabledListeners.contains(packageName)
     }
 

@@ -13,6 +13,7 @@ import androidx.core.content.getSystemService
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.WearableListenerService
 import it.silleellie.dndsync.shared.PhoneSignal
+import it.silleellie.dndsync.shared.PreferenceKeys
 import org.apache.commons.lang3.SerializationUtils
 
 class DNDSyncListenerService : WearableListenerService() {
@@ -47,7 +48,7 @@ class DNDSyncListenerService : WearableListenerService() {
                     "dndStatePhone != currentDndState: " + phoneSignal.dndState + " != " + currentDndState
                 )
 
-                changeDndSetting(mNotificationManager, phoneSignal.dndState)
+                changeDndSetting(mNotificationManager, phoneSignal.dndState!!)
 
                 Log.d(TAG, "vibrate: " + phoneSignal.vibratePref)
                 if (phoneSignal.vibratePref) {
@@ -71,7 +72,7 @@ class DNDSyncListenerService : WearableListenerService() {
                 val dndState = if (phoneSignal.bedtimeState == 1) 2 else 1
                 changeDndSetting(mNotificationManager, dndState)
 
-                val bedtimeModeSuccess = changeBedtimeSetting(phoneSignal.bedtimeState)
+                val bedtimeModeSuccess = changeBedtimeSetting(phoneSignal.bedtimeState!!)
                 if (bedtimeModeSuccess) {
                     Log.d(TAG, "Bedtime mode value toggled")
                 } else {
@@ -79,7 +80,7 @@ class DNDSyncListenerService : WearableListenerService() {
                 }
 
                 if (phoneSignal.powersavePref) {
-                    val powerModeSuccess = changePowerModeSetting(phoneSignal.bedtimeState)
+                    val powerModeSuccess = changePowerModeSetting(phoneSignal.bedtimeState!!)
                     if (powerModeSuccess) {
                         Log.d(TAG, "Power Saver mode toggled")
                     } else {
