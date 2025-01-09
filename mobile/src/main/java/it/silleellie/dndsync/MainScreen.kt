@@ -191,21 +191,24 @@ fun MainScreen(context: Context) {
                     enabled = permissionsGranted
                 )
 
-                // ConfigurationItem Save Toggle (Read-Only)
-                ConfigurationItem(
-                    leadingText = R.string.enable_power_saving_title,
-                    supportingText = R.string.enable_power_saving_desc,
-                    icon = {
-                        Icon(
-                            painterResource(R.drawable.battery_saver),
-                            contentDescription = "Power Saving"
-                        )
-                    },
-                    checked = powerSaveEnabled,
-                    onCheckedChange = { viewModel.setPowerSaveState(it) },
-                    enabled = bedtimeSync && permissionsGranted,
-                    child = true
-                )
+                // ⚠️  This setting is now removed
+                //     since Bedtime Mode does the same thing, or
+                //     actually even more than battery saver does.
+
+//                ConfigurationItem(
+//                    leadingText = R.string.enable_power_saving_title,
+//                    supportingText = R.string.enable_power_saving_desc,
+//                    icon = {
+//                        Icon(
+//                            painterResource(R.drawable.battery_saver),
+//                            contentDescription = "Power Saving"
+//                        )
+//                    },
+//                    checked = powerSaveEnabled,
+//                    onCheckedChange = { viewModel.setPowerSaveState(it) },
+//                    enabled = bedtimeSync && permissionsGranted,
+//                    child = true
+//                )
 
                 CategoryTitle(R.string.watch_sync_header)
 
