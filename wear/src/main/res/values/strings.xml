@@ -16,4 +16,7 @@
     <string name="secure_settings_permission_allowed">Secure Settings access granted</string>
     <string name="secure_settings_permission_not_allowed">Secure Settings access denied</string>
 
+    <string name="phone_title">Phone</string>
+    <string name="phone_connected">Connected</string>
+    <string name="phone_not_connected">Disconnected</string>
 </resources>
