@@ -10,6 +10,8 @@ import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 
+import it.silleellie.dndsync.wear.R;
+
 public class MainFragment extends PreferenceFragmentCompat {
     private Preference dndPref;
     private Preference secureSettingsPref;

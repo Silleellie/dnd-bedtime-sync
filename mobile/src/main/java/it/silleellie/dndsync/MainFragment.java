@@ -10,6 +10,8 @@ import androidx.preference.Preference;
 import androidx.preference.PreferenceFragmentCompat;
 import androidx.preference.SwitchPreferenceCompat;
 
+import it.silleellie.dndsync.mobile.R;
+
 public class MainFragment extends PreferenceFragmentCompat {
     private Preference dndPref;
 
