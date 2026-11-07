@@ -12,8 +12,16 @@
             app:summary="@string/sync_dnd_desc" />
 
         <SwitchPreferenceCompat
+            app:key="ringer_sync_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/sync_ringer_title"
+            app:summary="@string/sync_ringer_desc" />
+
+        <SwitchPreferenceCompat
             app:dependency="dnd_sync_key"
             app:key="dnd_as_bedtime_key"
+            app:iconSpaceReserved="false"
             app:title="@string/sync_dnd_as_bedtime_title"
             app:summary="@string/sync_dnd_as_bedtime_desc"
             app:defaultValue="false" />
@@ -46,9 +54,16 @@
             app:summary="@string/watch_sync_dnd_desc" />
 
         <SwitchPreferenceCompat
+            app:key="watch_ringer_sync_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/watch_sync_ringer_title"
+            app:summary="@string/watch_sync_ringer_desc" />
+
+        <SwitchPreferenceCompat
             app:key="watch_vibrate_key"
             app:iconSpaceReserved="false"
-            app:defaultValue="false"
+            app:defaultValue="true"
             app:title="@string/watch_vibrate_title"
             app:summary="@string/watch_vibrate_desc" />
 

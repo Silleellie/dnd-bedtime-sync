@@ -1,7 +1,6 @@
-package it.silleellie.dndsync;
+package com.aryan.wearmodesync;
 
 import android.os.Bundle;
-
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
@@ -18,3 +17,4 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 }
+

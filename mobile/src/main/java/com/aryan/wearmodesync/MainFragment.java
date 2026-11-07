@@ -1,4 +1,4 @@
-package it.silleellie.dndsync;
+package com.aryan.wearmodesync;
 
 import android.app.NotificationManager;
 import android.content.Context;
@@ -20,7 +20,7 @@ public class MainFragment extends PreferenceFragmentCompat {
         dndPref = findPreference("dnd_permission_key");
         assert(dndPref != null);
 
-        // Add listener to power save key so that it is dependant from the "dnd_as_bedtime_key"
+        // Add listener to power save key so that it is dependent on the "dnd_as_bedtime_key"
         // and "bedtime_sync_key" in logical OR (it should be enabled when one of the two is true)
         SwitchPreferenceCompat dndAsBedtime = findPreference("dnd_as_bedtime_key");
         SwitchPreferenceCompat bedtimeSync = findPreference("bedtime_sync_key");
@@ -31,18 +31,16 @@ public class MainFragment extends PreferenceFragmentCompat {
         assert(powerSave != null);
 
         // right at the start of app we should check if the powersave toggle should be enabled
-        if(dndAsBedtime.isChecked() || bedtimeSync.isChecked()) {
+        if (dndAsBedtime.isChecked() || bedtimeSync.isChecked()) {
             powerSave.setEnabled(true);
         }
 
         dndAsBedtime.setOnPreferenceChangeListener((preference, newValue) -> {
-
             if ((boolean) newValue) {
                 powerSave.setEnabled(true);
             } else if (!bedtimeSync.isChecked()) {
                 powerSave.setEnabled(false);
             }
-            // return true to update the preference with newValue
             return true;
         });
 
@@ -52,7 +50,6 @@ public class MainFragment extends PreferenceFragmentCompat {
             } else if (!dndAsBedtime.isChecked()) {
                 powerSave.setEnabled(false);
             }
-            // return true to update the preference with newValue
             return true;
         });
 
@@ -80,7 +77,8 @@ public class MainFragment extends PreferenceFragmentCompat {
     }
 
     private void openDNDPermissionRequest() {
-       Intent intent = new Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
-       startActivity(intent);
+        Intent intent = new Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+        startActivity(intent);
     }
 }
+

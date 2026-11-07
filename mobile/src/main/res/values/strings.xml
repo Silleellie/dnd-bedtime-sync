@@ -10,21 +10,27 @@
     <string name="sync_dnd_title">Sync DND state to watch</string>
     <string name="sync_dnd_desc">If enabled, a DND change on the phone will lead to a DND change on the watch</string>
 
+    <string name="sync_ringer_title">Sync Sound/Vibrate/Silent mode</string>
+    <string name="sync_ringer_desc">Sync Ring, Vibrate, and Silent states with the watch</string>
+
     <string name="sync_bedtime_title">Sync Bedtime mode to watch</string>
     <string name="sync_bedtime_desc">Enable Bedtime mode on the watch whenever it is enabled on the phone</string>
 
     <string name="sync_dnd_as_bedtime_title">Enable Bedtime mode on DND sync</string>
     <string name="sync_dnd_as_bedtime_desc">If enabled, DND changes on the phone will enable/disable Bedtime mode on the watch</string>
 
-    <string name="enable_power_saving_title">Enable Power Save mode with Bedtime</string>
+    <string name="enable_power_saving_title">Enable Power Save with Bedtime</string>
     <string name="enable_power_saving_desc">Bedtime mode will also enable power save mode on the watch</string>
 
     <!-- Watch Preferences -->
     <string name="watch_sync_dnd_title">Sync DND state to phone</string>
     <string name="watch_sync_dnd_desc">If enabled, a DND change on the watch will lead to a DND change on the phone</string>
 
+    <string name="watch_sync_ringer_title">Sync Sound mode to phone</string>
+    <string name="watch_sync_ringer_desc">If enabled, a sound mode change on the watch will update the phone sound mode</string>
+
     <string name="watch_vibrate_title">Vibrate on sync</string>
-    <string name="watch_vibrate_desc">If enabled, 1 small vibration for DND sync, 2 small vibrations for DND and Bedtime sync</string>
+    <string name="watch_vibrate_desc">If enabled, the watch will vibrate to confirm sync events</string>
 
     <!-- Permission Preferences -->
     <string name="dnd_permission_title">DND-Bedtime Permission</string>
