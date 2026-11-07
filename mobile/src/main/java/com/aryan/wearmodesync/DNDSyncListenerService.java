@@ -1,5 +1,6 @@
 package com.aryan.wearmodesync;
 
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -8,18 +9,20 @@ import android.provider.Settings;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
 import androidx.preference.PreferenceManager;
 
 import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.WearableListenerService;
 
-import org.apache.commons.lang3.SerializationUtils;
-
+import com.aryan.wearmodesync.shared.PhoneSignal;
 import com.aryan.wearmodesync.shared.WearSignal;
 
 public class DNDSyncListenerService extends WearableListenerService {
     private static final String TAG = "DNDSyncListenerService";
     private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
+    private static final String ALERT_CHANNEL_ID = "wearmodesync_battery_alerts";
+    private static final int NOTIF_WATCH_BATTERY_ID = 2002;
 
     @Override
     public void onMessageReceived(@NonNull MessageEvent messageEvent) {
@@ -28,10 +31,32 @@ public class DNDSyncListenerService extends WearableListenerService {
 
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             byte[] data = messageEvent.getData();
-            WearSignal wearSignal = SerializationUtils.deserialize(data);
+            WearSignal wearSignal = WearSignal.fromByteArray(data);
             if (wearSignal == null) return;
 
             NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+
+            // 1. Handle manual sync request from watch
+            if (wearSignal.syncRequest) {
+                Log.d(TAG, "Watch requested manual sync — replying with current phone modes");
+                int currentDnd = mNotificationManager.getCurrentInterruptionFilter();
+                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                int currentRinger = am != null ? am.getRingerMode() : -1;
+                PhoneSignal response = new PhoneSignal(currentDnd, currentRinger, prefs);
+                DNDNotificationService.sendDNDSync(this, response);
+                return;
+            }
+
+            // 2. Handle low battery alert from watch (<= 15%)
+            if (wearSignal.batteryLowAlert) {
+                boolean shouldAlert = prefs.getBoolean("watch_low_battery_key", true);
+                if (shouldAlert) {
+                    int pct = wearSignal.batteryPct != null ? wearSignal.batteryPct : 15;
+                    Log.d(TAG, "Watch battery low: " + pct + "%, posting notification");
+                    postWatchLowBatteryNotification(pct);
+                }
+                return;
+            }
 
             // 1. Handle DND state from watch
             if (wearSignal.dndState != null) {
@@ -88,6 +113,32 @@ public class DNDSyncListenerService extends WearableListenerService {
 
         } else {
             super.onMessageReceived(messageEvent);
+        }
+    }
+
+    private void postWatchLowBatteryNotification(int pct) {
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) return;
+
+            NotificationChannel channel = new NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    "Battery Alerts",
+                    NotificationManager.IMPORTANCE_DEFAULT
+            );
+            channel.setDescription("Alerts for watch and phone battery states");
+            nm.createNotificationChannel(channel);
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle("Watch Battery Low")
+                    .setContentText("Galaxy Watch battery is at " + pct + "%")
+                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setAutoCancel(true);
+
+            nm.notify(NOTIF_WATCH_BATTERY_ID, builder.build());
+        } catch (Exception e) {
+            Log.e(TAG, "Error posting watch low battery notification", e);
         }
     }
 }

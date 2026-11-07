@@ -79,4 +79,42 @@
 
     </PreferenceCategory>
 
+    <PreferenceCategory app:title="@string/battery_header"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="phone_charged_alert_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/phone_charged_alert_title"
+            app:summary="@string/phone_charged_alert_desc" />
+
+        <SwitchPreferenceCompat
+            app:key="phone_low_battery_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/phone_low_battery_title"
+            app:summary="@string/phone_low_battery_desc" />
+
+        <SwitchPreferenceCompat
+            app:key="watch_low_battery_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/watch_low_battery_title"
+            app:summary="@string/watch_low_battery_desc" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/advanced_header"
+        app:iconSpaceReserved="false">
+
+        <SwitchPreferenceCompat
+            app:key="keep_alive_key"
+            app:iconSpaceReserved="false"
+            app:defaultValue="true"
+            app:title="@string/keep_alive_title"
+            app:summary="@string/keep_alive_desc" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

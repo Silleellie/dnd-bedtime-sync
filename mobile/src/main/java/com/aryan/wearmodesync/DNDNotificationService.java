@@ -12,6 +12,7 @@ import android.content.pm.ServiceInfo;
 import android.database.ContentObserver;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -30,15 +31,18 @@ import com.google.android.gms.wearable.CapabilityInfo;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 
-import org.apache.commons.lang3.SerializationUtils;
-
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.aryan.wearmodesync.shared.PhoneSignal;
 
 public class DNDNotificationService extends NotificationListenerService {
     private static final String TAG = "DNDNotificationService";
+
+    // Dedicated single-thread worker to eliminate thread creation churn & GC spikes
+    private static final ExecutorService SYNC_EXECUTOR = Executors.newSingleThreadExecutor();
 
     // Foreground service constants — keep o-kill away on OEM devices (OnePlus Athena, etc.)
     private static final int FGS_NOTIFICATION_ID = 1001;
@@ -55,16 +59,103 @@ public class DNDNotificationService extends NotificationListenerService {
     private BroadcastReceiver ringerReceiver;
     private int lastRingerMode = -1;
 
+    private BroadcastReceiver batteryReceiver;
+    private boolean hasAlertedCharged = false;
+    private boolean hasAlertedLow = false;
+
+    private SharedPreferences.OnSharedPreferenceChangeListener prefListener;
+
     @Override
     public void onCreate() {
         super.onCreate();
         registerRingerListeners();
+        registerBatteryListener();
+        setupPreferenceListener();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         unregisterRingerListeners();
+        unregisterBatteryListener();
+        if (prefListener != null) {
+            PreferenceManager.getDefaultSharedPreferences(this)
+                    .unregisterOnSharedPreferenceChangeListener(prefListener);
+            prefListener = null;
+        }
+    }
+
+    private void registerBatteryListener() {
+        if (batteryReceiver == null) {
+            batteryReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())) {
+                        int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                        int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                        if (level < 0 || scale <= 0) return;
+                        int pct = (int) ((level / (float) scale) * 100);
+                        int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                                || status == BatteryManager.BATTERY_STATUS_FULL;
+
+                        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+
+                        // 1. Phone 100% full charge alert
+                        if (isCharging && pct >= 100) {
+                            if (!hasAlertedCharged) {
+                                hasAlertedCharged = true;
+                                if (prefs.getBoolean("phone_charged_alert_key", true)) {
+                                    Log.d(TAG, "Phone fully charged (100%), sending alert to watch");
+                                    SYNC_EXECUTOR.execute(() -> sendDNDSync(PhoneSignal.createBatteryAlert(true, 100)));
+                                }
+                            }
+                        } else if (!isCharging) {
+                            hasAlertedCharged = false; // reset when unplugged
+                        }
+
+                        // 2. Phone low battery alert (<= 15%)
+                        if (!isCharging && pct <= 15 && pct > 0) {
+                            if (!hasAlertedLow) {
+                                hasAlertedLow = true;
+                                if (prefs.getBoolean("phone_low_battery_key", true)) {
+                                    Log.d(TAG, "Phone battery low (" + pct + "%), sending alert to watch");
+                                    SYNC_EXECUTOR.execute(() -> sendDNDSync(PhoneSignal.createBatteryAlert(false, pct)));
+                                }
+                            }
+                        } else if (pct > 20) {
+                            hasAlertedLow = false; // reset once recharged above 20%
+                        }
+                    }
+                }
+            };
+            registerReceiver(batteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        }
+    }
+
+    private void unregisterBatteryListener() {
+        if (batteryReceiver != null) {
+            try {
+                unregisterReceiver(batteryReceiver);
+            } catch (Exception ignored) {}
+            batteryReceiver = null;
+        }
+    }
+
+    private void setupPreferenceListener() {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefListener = (sharedPreferences, key) -> {
+            if ("keep_alive_key".equals(key)) {
+                boolean keepAlive = sharedPreferences.getBoolean("keep_alive_key", true);
+                Log.d(TAG, "keep_alive_key changed: " + keepAlive);
+                if (keepAlive) {
+                    startPersistentForeground();
+                } else {
+                    stopForeground(STOP_FOREGROUND_REMOVE);
+                }
+            }
+        };
+        prefs.registerOnSharedPreferenceChangeListener(prefListener);
     }
 
     private synchronized void handleRingerChange(int currentRinger) {
@@ -79,10 +170,11 @@ public class DNDNotificationService extends NotificationListenerService {
             lastRingerMode = currentRinger;
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             boolean syncRinger = prefs.getBoolean("ringer_sync_key", true);
-            Log.d(TAG, "syncRinger enabled: " + syncRinger + ", sending ringerMode: " + currentRinger);
+            Log.d(TAG, "syncRinger enabled: " + syncRinger + ", sending ringerMode immediately: " + currentRinger);
+
             if (syncRinger) {
                 int finalRinger = currentRinger;
-                new Thread(() -> sendDNDSync(new PhoneSignal(-1, finalRinger, prefs))).start();
+                SYNC_EXECUTOR.execute(() -> sendDNDSync(new PhoneSignal(-1, finalRinger, prefs)));
             }
         }
     }
@@ -171,9 +263,12 @@ public class DNDNotificationService extends NotificationListenerService {
     @Override
     public void onListenerConnected() {
         super.onListenerConnected();
-        startPersistentForeground();
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        if (prefs.getBoolean("keep_alive_key", true)) {
+            startPersistentForeground();
+        }
         registerRingerListeners();
-        Log.d(TAG, "listener connected — foreground service active");
+        Log.d(TAG, "listener connected");
     }
 
     /**
@@ -239,11 +334,11 @@ public class DNDNotificationService extends NotificationListenerService {
                 if (is_on) {
                     Log.d(TAG, "bedtime mode is on");
                     int interruptionFilter = 5;
-                    new Thread(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs))).start();
+                    SYNC_EXECUTOR.execute(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs)));
                 } else if (is_paused) {
                     Log.d(TAG, "bedtime mode is off");
                     int interruptionFilter = 6;
-                    new Thread(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs))).start();
+                    SYNC_EXECUTOR.execute(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs)));
                 }
             }
         }
@@ -258,7 +353,7 @@ public class DNDNotificationService extends NotificationListenerService {
             if (syncBedTime) {
                 Log.d(TAG, "bedtime mode is off (notification removed)");
                 int interruptionFilter = 6;
-                new Thread(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs))).start();
+                SYNC_EXECUTOR.execute(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs)));
             }
         }
     }
@@ -277,36 +372,42 @@ public class DNDNotificationService extends NotificationListenerService {
         boolean syncDnd = prefs.getBoolean("dnd_sync_key", true);
 
         if (syncDnd) {
-            new Thread(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs))).start();
+            SYNC_EXECUTOR.execute(() -> sendDNDSync(new PhoneSignal(interruptionFilter, prefs)));
         }
     }
 
     public void sendDNDSync(PhoneSignal phoneSignal) {
-        CapabilityInfo capabilityInfo;
-        try {
-            capabilityInfo = Tasks.await(
-                    Wearable.getCapabilityClient(this).getCapability(
-                            DND_SYNC_CAPABILITY_NAME, CapabilityClient.FILTER_REACHABLE));
-        } catch (ExecutionException | InterruptedException e) {
-            Log.e(TAG, "execution error while searching nodes", e);
-            return;
-        }
+        sendDNDSync(this, phoneSignal);
+    }
 
-        Set<Node> connectedNodes = capabilityInfo.getNodes();
-        if (connectedNodes.isEmpty()) {
-            Log.d(TAG, "Unable to retrieve node with sync capability!");
-        } else {
-            for (Node node : connectedNodes) {
-                if (node.isNearby()) {
-                    byte[] data = SerializationUtils.serialize(phoneSignal);
-                    Task<Integer> sendTask =
-                            Wearable.getMessageClient(this).sendMessage(node.getId(), DND_SYNC_MESSAGE_PATH, data);
+    public static void sendDNDSync(Context context, PhoneSignal phoneSignal) {
+        SYNC_EXECUTOR.execute(() -> {
+            CapabilityInfo capabilityInfo;
+            try {
+                capabilityInfo = Tasks.await(
+                        Wearable.getCapabilityClient(context).getCapability(
+                                DND_SYNC_CAPABILITY_NAME, CapabilityClient.FILTER_REACHABLE));
+            } catch (ExecutionException | InterruptedException e) {
+                Log.e(TAG, "execution error while searching nodes", e);
+                return;
+            }
 
-                    sendTask.addOnSuccessListener(integer -> Log.d(TAG, "send successful! Receiver node id: " + node.getId()));
-                    sendTask.addOnFailureListener(e -> Log.d(TAG, "send failed! Receiver node id: " + node.getId()));
+            Set<Node> connectedNodes = capabilityInfo.getNodes();
+            if (connectedNodes.isEmpty()) {
+                Log.d(TAG, "Unable to retrieve node with sync capability!");
+            } else {
+                for (Node node : connectedNodes) {
+                    if (node.isNearby()) {
+                        byte[] data = phoneSignal.toByteArray();
+                        Task<Integer> sendTask =
+                                Wearable.getMessageClient(context).sendMessage(node.getId(), DND_SYNC_MESSAGE_PATH, data);
+
+                        sendTask.addOnSuccessListener(integer -> Log.d(TAG, "send successful! Receiver node id: " + node.getId()));
+                        sendTask.addOnFailureListener(e -> Log.d(TAG, "send failed! Receiver node id: " + node.getId()));
+                    }
                 }
             }
-        }
+        });
     }
 }
 

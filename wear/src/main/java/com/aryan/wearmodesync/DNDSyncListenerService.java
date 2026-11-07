@@ -1,5 +1,6 @@
 package com.aryan.wearmodesync;
 
+import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
 import android.media.AudioManager;
@@ -10,16 +11,17 @@ import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
 import androidx.annotation.NonNull;
+import androidx.core.app.NotificationCompat;
 import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.WearableListenerService;
-
-import org.apache.commons.lang3.SerializationUtils;
 
 import com.aryan.wearmodesync.shared.PhoneSignal;
 
 public class DNDSyncListenerService extends WearableListenerService {
     private static final String TAG = "DNDSyncListenerService";
     private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
+    private static final String ALERT_CHANNEL_ID = "wear_battery_alerts";
+    private static final int NOTIF_BATTERY_ALERT_ID = 3001;
 
     @Override
     public void onMessageReceived(@NonNull MessageEvent messageEvent) {
@@ -27,8 +29,24 @@ public class DNDSyncListenerService extends WearableListenerService {
             Log.d(TAG, "received path: " + DND_SYNC_MESSAGE_PATH);
 
             byte[] data = messageEvent.getData();
-            PhoneSignal phoneSignal = SerializationUtils.deserialize(data);
+            PhoneSignal phoneSignal = PhoneSignal.fromByteArray(data);
             if (phoneSignal == null) return;
+
+            // Handle battery alerts from phone
+            if (phoneSignal.batteryChargedAlert) {
+                Log.d(TAG, "Received phone fully charged alert");
+                postWatchAlertNotification("Phone Battery", "Phone battery fully charged");
+                vibrate();
+                return;
+            }
+
+            if (phoneSignal.batteryLowAlert) {
+                int pct = phoneSignal.batteryPct != null ? phoneSignal.batteryPct : 15;
+                Log.d(TAG, "Received phone low battery alert: " + pct + "%");
+                postWatchAlertNotification("Phone Battery Low", "Phone battery is at " + pct + "%");
+                vibrate();
+                return;
+            }
 
             NotificationManager mNotificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             int currentDndState = mNotificationManager.getCurrentInterruptionFilter();
@@ -154,7 +172,7 @@ public class DNDSyncListenerService extends WearableListenerService {
         if (powerManager != null) {
             PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
                     PowerManager.PARTIAL_WAKE_LOCK, "wearmodesync:ringer_vibrate");
-            wakeLock.acquire(1500); // Automatically released after 1.5s
+            wakeLock.acquire(400); // 400ms is sufficient to dispatch vibration without 1.2s dead idle
         }
 
         try {
@@ -225,8 +243,44 @@ public class DNDSyncListenerService extends WearableListenerService {
         boolean smConnectivityDisable = Settings.Secure.putInt(
                 getApplicationContext().getContentResolver(), "sm_connectivity_disable", newSetting);
 
+        // Set screen timeout to 10s during bedtime power save, restore 30s when exiting
+        try {
+            int timeoutMs = (newSetting == 1) ? 10000 : 30000;
+            Settings.System.putInt(getApplicationContext().getContentResolver(),
+                    Settings.System.SCREEN_OFF_TIMEOUT, timeoutMs);
+            Log.d(TAG, "Screen off timeout set to " + timeoutMs + "ms");
+        } catch (Exception e) {
+            Log.e(TAG, "Error setting screen_off_timeout", e);
+        }
+
         return lowPower && restrictedDevicePerformance
                 && lowPowerBackDataOff && smConnectivityDisable;
+    }
+
+    private void postWatchAlertNotification(String title, String text) {
+        try {
+            NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+            if (nm == null) return;
+
+            NotificationChannel channel = new NotificationChannel(
+                    ALERT_CHANNEL_ID,
+                    "Battery Alerts",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            channel.setDescription("Phone battery state notifications");
+            nm.createNotificationChannel(channel);
+
+            NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setContentTitle(title)
+                    .setContentText(text)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setAutoCancel(true);
+
+            nm.notify(NOTIF_BATTERY_ALERT_ID, builder.build());
+        } catch (Exception e) {
+            Log.e(TAG, "Error posting watch alert notification", e);
+        }
     }
 
     private void vibrate() {

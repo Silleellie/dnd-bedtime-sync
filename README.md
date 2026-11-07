@@ -7,9 +7,15 @@
 > - **[@Silleellie](https://github.com/Silleellie)** for the DND-Bedtime-Sync app and ecosystem
 > - **[@DreadedLama](https://github.com/DreadedLama)** for the initial Bedtime mode implementation
 >
-> **wear-mode-sync (v3.0)** builds on top of their work with:
+> **wear-mode-sync (v3.1)** builds on top of their work with:
+> - **Samsung One UI Curved Scaling Watch Interface**: Native Galaxy Watch circular bezel list with rotary crown and touch-bezel scrolling, live connection status, and permission cards
+> - **On-Demand "Sync Now" Button**: Material pill button on watch with tactile haptic feedback to instantly pull phone states
 > - **Bidirectional Sound Profile Sync** (Ring, Vibrate, Silent) completely decoupled from DND
-> - **Tactile Alert Slider Haptics** for Wear OS
+> - **Tactile Alert Slider Haptics** for Wear OS with USAGE_ALARM priority
+> - **Bidirectional Battery Alerts**: Alerts watch when phone reaches 100% full charge or drops below 15%; alerts phone when watch drops below 15%
+> - **Configurable OEM Background Protection**: User toggle between pure background listener mode (for Pixel/AOSP) and persistent foreground service (for OnePlus Athena, Xiaomi MIUI, Samsung)
+> - **Bedtime Screen Timeout Optimization**: Automatically switches screen timeout to 10 seconds during bedtime power save and restores on exit
+> - **Ultra-Fast 6-Byte Binary Protocol**: Reflection-free direct `ByteBuffer` serialization; removed external dependencies like `commons-lang3`
 > - **AMOLED Pure Black Themes** across Phone and Watch
 > - **Modern Android 14–16 & Wear OS 5/6 toolchain** (Java 17, Gradle 9, API 36)
 
@@ -100,20 +106,27 @@ Note: This is only tested on my **Galaxy Watch 4** and it might not work on othe
 * If you enable the setting ***Enable Power Saver mode with Bedtime***, the watch will turn on *power save* mode whenever the *Bedtime Mode* is synced from the phone,
   either due to *Sync Bedtime mode to watch* or to *Enable Bedtime mode on DND sync*
 
-### Watch preferences
+### Battery preferences
 
-* If you enable the setting ***Sync DND state to phone***, a DND change on the watch will lead to a DND change on the phone
-* If you enable the setting ***Sync Sound mode to phone***, changing the sound mode (Ring / Vibrate / Silent) on the watch will update the phone sound mode
-* If you enable the setting ***Vibrate on sync***, the watch will vibrate with mode-distinct haptics whenever it receives a sync request from the phone
+* ***Phone battery fully charged***: When enabled, your watch will vibrate and notify you when your phone reaches 100% full charge while plugged in.
+* ***Phone Low Battery Alert***: When enabled, your watch will alert you when your phone drops to 15% or lower.
+* ***Watch Low Battery Alert***: When enabled, your phone will notify you when your watch drops to 15% or lower.
+
+### Background & OEM Protection
+
+* ***Aggressive OEM Keep-Alive***: Runs a silent `connectedDevice` foreground service with minimal priority to prevent aggressive task killers (OnePlus Athena / `o-kill`, Xiaomi MIUI/HyperOS, Samsung app sleeping) from killing background sync. Can be safely turned off for pure background mode on stock Pixel/AOSP devices.
+
+### Watch interface & preferences
+
+* **Samsung One UI Curved Scaling UI**: Rotary crown and touch-bezel circular scrolling list where items in the center expand and edge items curve and shrink.
+* **Sync Now Button**: Tap the pill button on the watch for instant manual synchronization of phone modes with haptic feedback.
+* **Live Connection & Mode Status**: Live status card showing phone connection state and active DND & sound profiles.
+* **Permission Cards**: Live badge indicators for DND and Secure Settings permissions.
 
 ## To do (developers)
 
-There are only two flags which the *Power saver mode* of this app does not enable but which are enabled
-by the *Power saver mode* of the watch itself:
-
-* Change screen timeout setting to *10 sec* when *Power Saver Mode* is enabled, just like it is if enabled via the watch
-* (Optional) For coherence, also the *wake up the watch by tilt* should be disabled via code. This is optional since it is 
-  disabled automatically whenever the low power mode is enabled and does not require setting manually the flag to 0, but still
+* [x] **Change screen timeout setting to 10 sec when Power Saver Mode is enabled**: Implemented in v3.1 (`SCREEN_OFF_TIMEOUT` set to 10s during bedtime, restored to 30s on wake).
+* **Wake up by tilt**: Handled natively by Wear OS framework power saver.
 
 Pull requests are welcome!
 

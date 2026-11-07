@@ -37,4 +37,18 @@
     <string name="dnd_permission_allowed">DND-Bedtime access granted</string>
     <string name="dnd_permission_not_allowed">DND-Bedtime access denied</string>
 
+    <!-- Background & Advanced Preferences -->
+    <string name="advanced_header">Background &amp; OEM Protection</string>
+    <string name="keep_alive_title">Aggressive OEM Keep-Alive</string>
+    <string name="keep_alive_desc">Runs a silent persistent foreground service to prevent OnePlus Athena, Xiaomi, and Samsung killers from terminating sync. Turn off for pure background mode on Pixel/AOSP.</string>
+
+    <!-- Battery Preferences -->
+    <string name="battery_header">Battery Alerts</string>
+    <string name="phone_charged_alert_title">Phone battery fully charged</string>
+    <string name="phone_charged_alert_desc">Notify watch when phone battery is fully charged</string>
+    <string name="phone_low_battery_title">Phone Low Battery Alert</string>
+    <string name="phone_low_battery_desc">Notify watch when phone drops to 15% or lower</string>
+    <string name="watch_low_battery_title">Watch Low Battery Alert</string>
+    <string name="watch_low_battery_desc">Notify phone when watch drops to 15% or lower</string>
+
 </resources>

@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.database.ContentObserver;
 import android.media.AudioManager;
 import android.net.Uri;
+import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -22,10 +23,10 @@ import com.google.android.gms.wearable.CapabilityInfo;
 import com.google.android.gms.wearable.Node;
 import com.google.android.gms.wearable.Wearable;
 
-import org.apache.commons.lang3.SerializationUtils;
-
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import com.aryan.wearmodesync.shared.WearSignal;
 
@@ -33,6 +34,8 @@ public class DNDNotificationService extends NotificationListenerService {
     private static final String TAG = "DNDNotificationService";
     private static final String DND_SYNC_CAPABILITY_NAME = "dnd_sync";
     private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
+
+    private static final ExecutorService SYNC_EXECUTOR = Executors.newSingleThreadExecutor();
 
     public static boolean running = false;
 
@@ -44,16 +47,60 @@ public class DNDNotificationService extends NotificationListenerService {
     private BroadcastReceiver ringerReceiver;
     private int lastSentRinger = -1;
 
+    private BroadcastReceiver watchBatteryReceiver;
+    private boolean hasAlertedWatchLow = false;
+
     @Override
     public void onCreate() {
         super.onCreate();
         registerRingerListeners();
+        registerWatchBatteryListener();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         unregisterRingerListeners();
+        unregisterWatchBatteryListener();
+    }
+
+    private void registerWatchBatteryListener() {
+        if (watchBatteryReceiver == null) {
+            watchBatteryReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (Intent.ACTION_BATTERY_CHANGED.equals(intent.getAction())) {
+                        int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                        int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                        if (level < 0 || scale <= 0) return;
+                        int pct = (int) ((level / (float) scale) * 100);
+                        int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                        boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING
+                                || status == BatteryManager.BATTERY_STATUS_FULL;
+
+                        if (!isCharging && pct <= 15 && pct > 0) {
+                            if (!hasAlertedWatchLow) {
+                                hasAlertedWatchLow = true;
+                                Log.d(TAG, "Watch battery low (" + pct + "%), notifying phone");
+                                sendWearSync(context, WearSignal.createBatteryAlert(pct));
+                            }
+                        } else if (pct > 20) {
+                            hasAlertedWatchLow = false;
+                        }
+                    }
+                }
+            };
+            registerReceiver(watchBatteryReceiver, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        }
+    }
+
+    private void unregisterWatchBatteryListener() {
+        if (watchBatteryReceiver != null) {
+            try {
+                unregisterReceiver(watchBatteryReceiver);
+            } catch (Exception ignored) {}
+            watchBatteryReceiver = null;
+        }
     }
 
     @Override
@@ -172,7 +219,7 @@ public class DNDNotificationService extends NotificationListenerService {
     }
 
     public static void sendWearSync(Context context, WearSignal wearSignal) {
-        new Thread(() -> {
+        SYNC_EXECUTOR.execute(() -> {
             try {
                 CapabilityInfo capabilityInfo = Tasks.await(
                         Wearable.getCapabilityClient(context).getCapability(
@@ -182,7 +229,7 @@ public class DNDNotificationService extends NotificationListenerService {
                     Log.d(TAG, "Unable to retrieve node with sync capability!");
                     return;
                 }
-                byte[] data = SerializationUtils.serialize(wearSignal);
+                byte[] data = wearSignal.toByteArray();
                 for (Node node : connectedNodes) {
                     if (node.isNearby()) {
                         Task<Integer> sendTask = Wearable.getMessageClient(context).sendMessage(node.getId(), DND_SYNC_MESSAGE_PATH, data);
@@ -193,7 +240,7 @@ public class DNDNotificationService extends NotificationListenerService {
             } catch (ExecutionException | InterruptedException e) {
                 Log.e(TAG, "Error sending wear sync", e);
             }
-        }).start();
+        });
     }
 }
 
