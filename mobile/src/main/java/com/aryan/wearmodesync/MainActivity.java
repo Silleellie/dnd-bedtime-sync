@@ -2,12 +2,16 @@ package com.aryan.wearmodesync;
 
 import android.Manifest;
 import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.database.ContentObserver;
 import android.graphics.Color;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -15,6 +19,7 @@ import android.os.Looper;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.View;
 import android.widget.CompoundButton;
 import android.widget.FrameLayout;
@@ -34,11 +39,44 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.preference.PreferenceManager;
 
+import com.google.android.gms.wearable.CapabilityClient;
 import com.google.android.gms.wearable.Wearable;
 
 import com.aryan.wearmodesync.shared.PhoneSignal;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
+    public static final String ACTION_MODE_UPDATED = "com.aryan.wearmodesync.ACTION_MODE_UPDATED";
+    private static final String DND_SYNC_CAPABILITY_NAME = "dnd_sync";
+
+    public interface ModeUpdateListener {
+        void onModeUpdated();
+    }
+
+    private static volatile ModeUpdateListener liveModeListener;
+
+    public static void notifyModeChanged(Context context) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (liveModeListener != null) {
+                liveModeListener.onModeUpdated();
+            }
+        });
+
+        if (context != null) {
+            try {
+                Intent intent = new Intent(ACTION_MODE_UPDATED);
+                intent.setPackage(context.getPackageName());
+                context.sendBroadcast(intent);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshRunnable = this::refreshStateInternal;
+
+    private BroadcastReceiver modeReceiver;
+    private ContentObserver settingsContentObserver;
+    private CapabilityClient.OnCapabilityChangedListener capabilityListener;
 
     private SharedPreferences prefs;
 
@@ -212,6 +250,13 @@ public class MainActivity extends AppCompatActivity {
             int currentRinger = am != null ? am.getRingerMode() : AudioManager.RINGER_MODE_NORMAL;
 
             PhoneSignal signal = new PhoneSignal(currentDnd, currentRinger, prefs);
+            if (signal.bedtimeState == null && prefs.getBoolean("bedtime_sync_key", false)) {
+                int samsungBedtime = Settings.Global.getInt(getContentResolver(), "setting_bedtime_mode_running_state", -1);
+                int aospBedtime = Settings.Global.getInt(getContentResolver(), "bedtime_mode", -1);
+                if (samsungBedtime == 1 || aospBedtime == 1 || DNDNotificationService.isBedtimeActive) {
+                    signal.bedtimeState = 1;
+                }
+            }
             DNDNotificationService.sendDNDSync(MainActivity.this, signal);
             Toast.makeText(MainActivity.this, "Sync sent to watch", Toast.LENGTH_SHORT).show();
 
@@ -305,7 +350,14 @@ public class MainActivity extends AppCompatActivity {
         rowPowerSave.setAlpha(powerSaveEnabled ? 1.0f : 0.45f);
     }
 
-    private void refreshState() {
+    public void refreshState() {
+        mainHandler.removeCallbacks(refreshRunnable);
+        mainHandler.post(refreshRunnable);
+    }
+
+    private void refreshStateInternal() {
+        if (isFinishing() || isDestroyed()) return;
+
         // 1. Check DND & Notification Policy Permission
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         boolean isDndGranted = nm != null && nm.isNotificationPolicyAccessGranted();
@@ -326,12 +378,24 @@ public class MainActivity extends AppCompatActivity {
         String ringerStr = ringer == AudioManager.RINGER_MODE_SILENT ? "Silent" :
                 ringer == AudioManager.RINGER_MODE_VIBRATE ? "Vibrate" : "Ring";
         int dnd = nm != null ? nm.getCurrentInterruptionFilter() : -1;
-        String dndStr = dnd == NotificationManager.INTERRUPTION_FILTER_ALL ? "DND Off" : "DND On";
-        tvModeSummary.setText("Phone: " + dndStr + " • " + ringerStr);
+        boolean isDndOn = isDndGranted && (dnd > NotificationManager.INTERRUPTION_FILTER_ALL);
+        String dndStr = isDndOn ? "DND On" : "DND Off";
+
+        // Bedtime mode detection
+        int samsungBedtime = Settings.Global.getInt(getContentResolver(), "setting_bedtime_mode_running_state", -1);
+        int aospBedtime = Settings.Global.getInt(getContentResolver(), "bedtime_mode", -1);
+        boolean isBedtime = (samsungBedtime == 1) || (aospBedtime == 1) || DNDNotificationService.isBedtimeActive;
+
+        if (isBedtime) {
+            tvModeSummary.setText("Phone: " + dndStr + " • " + ringerStr + " • Bedtime");
+        } else {
+            tvModeSummary.setText("Phone: " + dndStr + " • " + ringerStr);
+        }
 
         // 3. Check Galaxy Watch connection status
         Wearable.getNodeClient(this).getConnectedNodes()
                 .addOnSuccessListener(nodes -> {
+                    if (isFinishing() || isDestroyed()) return;
                     boolean isConnected = nodes != null && !nodes.isEmpty();
                     if (isConnected) {
                         String nodeName = nodes.get(0).getDisplayName();
@@ -343,11 +407,117 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> {
+                    if (isFinishing() || isDestroyed()) return;
                     tvConnectionStatus.setText(R.string.searching_watch);
                     badgeStatusCircle.setBackgroundResource(R.drawable.bg_circle_orange);
                 });
 
         updateDependencies();
+    }
+
+    private void registerModeListeners() {
+        if (modeReceiver == null) {
+            modeReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    String action = intent != null ? intent.getAction() : null;
+                    Log.d(TAG, "modeReceiver received: " + action);
+                    refreshState();
+                }
+            };
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
+            filter.addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED);
+            filter.addAction(NotificationManager.ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED);
+            filter.addAction(ACTION_MODE_UPDATED);
+            registerReceiver(modeReceiver, filter, Context.RECEIVER_EXPORTED);
+        }
+
+        if (settingsContentObserver == null) {
+            settingsContentObserver = new ContentObserver(mainHandler) {
+                @Override
+                public void onChange(boolean selfChange, Uri uri) {
+                    super.onChange(selfChange, uri);
+                    Log.d(TAG, "settingsContentObserver onChange: " + uri);
+                    refreshState();
+                }
+            };
+
+            String[] settingsToObserve = {
+                    "mode_ringer",
+                    "zen_mode",
+                    "setting_bedtime_mode_running_state",
+                    "bedtime_mode"
+            };
+
+            for (String setting : settingsToObserve) {
+                try {
+                    getContentResolver().registerContentObserver(
+                            Settings.Global.getUriFor(setting),
+                            false,
+                            settingsContentObserver
+                    );
+                } catch (Exception ignored) {}
+            }
+
+            try {
+                getContentResolver().registerContentObserver(
+                        Settings.System.getUriFor(Settings.System.MODE_RINGER_STREAMS_AFFECTED),
+                        false,
+                        settingsContentObserver
+                );
+            } catch (Exception ignored) {}
+        }
+
+        if (capabilityListener == null) {
+            capabilityListener = capabilityInfo -> {
+                Log.d(TAG, "Capability changed for dnd_sync");
+                refreshState();
+            };
+            try {
+                Wearable.getCapabilityClient(this).addListener(
+                        capabilityListener,
+                        DND_SYNC_CAPABILITY_NAME
+                );
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void unregisterModeListeners() {
+        if (modeReceiver != null) {
+            try {
+                unregisterReceiver(modeReceiver);
+            } catch (Exception ignored) {}
+            modeReceiver = null;
+        }
+
+        if (settingsContentObserver != null) {
+            try {
+                getContentResolver().unregisterContentObserver(settingsContentObserver);
+            } catch (Exception ignored) {}
+            settingsContentObserver = null;
+        }
+
+        if (capabilityListener != null) {
+            try {
+                Wearable.getCapabilityClient(this).removeListener(capabilityListener);
+            } catch (Exception ignored) {}
+            capabilityListener = null;
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        liveModeListener = this::refreshState;
+        registerModeListeners();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        liveModeListener = null;
+        unregisterModeListeners();
     }
 
     private void performHapticClick() {

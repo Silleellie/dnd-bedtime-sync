@@ -54,6 +54,7 @@ public class DNDNotificationService extends NotificationListenerService {
     // Loop prevention state updated when receiving events from watch
     public static volatile int lastReceivedRingerMode = -1;
     public static volatile int lastReceivedDndFilter = -1;
+    public static volatile boolean isBedtimeActive = false;
 
     private ContentObserver ringerObserver;
     private BroadcastReceiver ringerReceiver;
@@ -159,6 +160,8 @@ public class DNDNotificationService extends NotificationListenerService {
     }
 
     private synchronized void handleRingerChange(int currentRinger) {
+        MainActivity.notifyModeChanged(this);
+
         if (currentRinger == lastReceivedRingerMode) {
             Log.d(TAG, "Skipping echo ringerMode from watch sync: " + currentRinger);
             lastReceivedRingerMode = -1;
@@ -324,13 +327,21 @@ public class DNDNotificationService extends NotificationListenerService {
     @Override
     public void onNotificationPosted(StatusBarNotification sbn){
         if (isWindDownNotification(sbn)) {
+            boolean is_on = sbn.getNotification().actions != null && sbn.getNotification().actions.length == 2;
+            boolean is_paused = sbn.getNotification().actions != null && sbn.getNotification().actions.length == 1;
+
+            if (is_on) {
+                isBedtimeActive = true;
+                MainActivity.notifyModeChanged(this);
+            } else if (is_paused) {
+                isBedtimeActive = false;
+                MainActivity.notifyModeChanged(this);
+            }
+
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             boolean syncBedTime = prefs.getBoolean("bedtime_sync_key", false);
 
             if (syncBedTime) {
-                boolean is_on = sbn.getNotification().actions != null && sbn.getNotification().actions.length == 2;
-                boolean is_paused = sbn.getNotification().actions != null && sbn.getNotification().actions.length == 1;
-
                 if (is_on) {
                     Log.d(TAG, "bedtime mode is on");
                     int interruptionFilter = 5;
@@ -347,6 +358,9 @@ public class DNDNotificationService extends NotificationListenerService {
     @Override
     public void onNotificationRemoved(StatusBarNotification sbn){
         if (isWindDownNotification(sbn)) {
+            isBedtimeActive = false;
+            MainActivity.notifyModeChanged(this);
+
             SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
             boolean syncBedTime = prefs.getBoolean("bedtime_sync_key", false);
 
@@ -361,6 +375,7 @@ public class DNDNotificationService extends NotificationListenerService {
     @Override
     public void onInterruptionFilterChanged(int interruptionFilter) {
         Log.d(TAG, "interruption filter changed to " + interruptionFilter);
+        MainActivity.notifyModeChanged(this);
 
         if (interruptionFilter == lastReceivedDndFilter) {
             Log.d(TAG, "Skipping echo DND filter broadcast from watch sync: " + interruptionFilter);

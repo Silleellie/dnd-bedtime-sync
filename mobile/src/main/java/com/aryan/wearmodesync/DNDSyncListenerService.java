@@ -70,6 +70,7 @@ public class DNDSyncListenerService extends WearableListenerService {
                         DNDNotificationService.lastReceivedDndFilter = dndStateWear;
                         mNotificationManager.setInterruptionFilter(dndStateWear);
                         Log.d(TAG, "Phone DND set to " + dndStateWear);
+                        MainActivity.notifyModeChanged(this);
                     } else {
                         Log.w(TAG, "Attempting to set DND but access not granted");
                     }
@@ -93,6 +94,7 @@ public class DNDSyncListenerService extends WearableListenerService {
                             try {
                                 audioManager.setRingerMode(ringerModeWear);
                                 Log.d(TAG, "Phone ringer mode set to " + ringerModeWear);
+                                MainActivity.notifyModeChanged(this);
                             } catch (Exception e) {
                                 Log.e(TAG, "Failed to set phone ringer mode via AudioManager", e);
                             }

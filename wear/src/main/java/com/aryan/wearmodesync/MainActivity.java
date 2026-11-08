@@ -2,10 +2,15 @@ package com.aryan.wearmodesync;
 
 import android.Manifest;
 import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.ContentObserver;
 import android.graphics.Color;
 import android.media.AudioManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -13,6 +18,8 @@ import android.os.Looper;
 import android.os.VibrationAttributes;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.provider.Settings;
+import android.util.Log;
 import android.view.InputDevice;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
@@ -31,13 +38,57 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.wear.widget.WearableLinearLayoutManager;
 import androidx.wear.widget.WearableRecyclerView;
 
+import com.google.android.gms.wearable.CapabilityClient;
 import com.google.android.gms.wearable.Wearable;
 
 import com.aryan.wearmodesync.shared.WearSignal;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "WearMainActivity";
+    public static final String ACTION_MODE_UPDATED = "com.aryan.wearmodesync.ACTION_MODE_UPDATED";
+    private static final String DND_SYNC_CAPABILITY_NAME = "dnd_sync";
+
     private WearableRecyclerView recyclerView;
     private MenuAdapter adapter;
+
+    public interface ModeUpdateListener {
+        void onModeUpdated();
+    }
+
+    private static volatile ModeUpdateListener liveModeListener;
+
+    public static void notifyModeChanged(Context context) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            if (liveModeListener != null) {
+                liveModeListener.onModeUpdated();
+            }
+        });
+
+        if (context != null) {
+            try {
+                Intent intent = new Intent(ACTION_MODE_UPDATED);
+                intent.setPackage(context.getPackageName());
+                context.sendBroadcast(intent);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private final Runnable refreshRunnable = () -> {
+        if (isFinishing() || isDestroyed()) return;
+        if (adapter != null) {
+            adapter.refreshState();
+        }
+    };
+
+    public void safeRefresh() {
+        mainHandler.removeCallbacks(refreshRunnable);
+        mainHandler.post(refreshRunnable);
+    }
+
+    private BroadcastReceiver modeReceiver;
+    private ContentObserver settingsContentObserver;
+    private CapabilityClient.OnCapabilityChangedListener capabilityListener;
 
     /**
      * Samsung One UI / Google Wear OS accelerated edge layout callback:
@@ -138,12 +189,101 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    private void registerModeListeners() {
+        if (modeReceiver == null) {
+            modeReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    safeRefresh();
+                }
+            };
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(AudioManager.RINGER_MODE_CHANGED_ACTION);
+            filter.addAction(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED);
+            filter.addAction(NotificationManager.ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED);
+            filter.addAction(ACTION_MODE_UPDATED);
+            registerReceiver(modeReceiver, filter, Context.RECEIVER_EXPORTED);
+        }
+
+        if (settingsContentObserver == null) {
+            settingsContentObserver = new ContentObserver(mainHandler) {
+                @Override
+                public void onChange(boolean selfChange, Uri uri) {
+                    super.onChange(selfChange, uri);
+                    safeRefresh();
+                }
+            };
+
+            String[] settingsToObserve = {
+                    "mode_ringer",
+                    "zen_mode",
+                    "setting_bedtime_mode_running_state",
+                    "bedtime_mode"
+            };
+
+            for (String setting : settingsToObserve) {
+                try {
+                    getContentResolver().registerContentObserver(
+                            Settings.Global.getUriFor(setting),
+                            false,
+                            settingsContentObserver
+                    );
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (capabilityListener == null) {
+            capabilityListener = capabilityInfo -> safeRefresh();
+            try {
+                Wearable.getCapabilityClient(this).addListener(
+                        capabilityListener,
+                        DND_SYNC_CAPABILITY_NAME
+                );
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void unregisterModeListeners() {
+        if (modeReceiver != null) {
+            try {
+                unregisterReceiver(modeReceiver);
+            } catch (Exception ignored) {}
+            modeReceiver = null;
+        }
+
+        if (settingsContentObserver != null) {
+            try {
+                getContentResolver().unregisterContentObserver(settingsContentObserver);
+            } catch (Exception ignored) {}
+            settingsContentObserver = null;
+        }
+
+        if (capabilityListener != null) {
+            try {
+                Wearable.getCapabilityClient(this).removeListener(capabilityListener);
+            } catch (Exception ignored) {}
+            capabilityListener = null;
+        }
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        liveModeListener = this::safeRefresh;
+        registerModeListeners();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        liveModeListener = null;
+        unregisterModeListeners();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        if (adapter != null) {
-            adapter.refreshState();
-        }
+        safeRefresh();
     }
 
     private void performHapticClick() {
@@ -183,21 +323,37 @@ public class MainActivity extends AppCompatActivity {
             String ringerStr = ringer == AudioManager.RINGER_MODE_SILENT ? "Silent" :
                     ringer == AudioManager.RINGER_MODE_VIBRATE ? "Vibrate" : "Ring";
             int dnd = nm != null ? nm.getCurrentInterruptionFilter() : -1;
-            String dndStr = dnd == NotificationManager.INTERRUPTION_FILTER_ALL ? "DND Off" : "DND On";
-            modeSummary = dndStr + " • " + ringerStr;
+            boolean isDndOn = isDndGranted && (dnd > NotificationManager.INTERRUPTION_FILTER_ALL);
+            String dndStr = isDndOn ? "DND On" : "DND Off";
+
+            int samsungBedtime = Settings.Global.getInt(getContentResolver(), "setting_bedtime_mode_running_state", -1);
+            int aospBedtime = Settings.Global.getInt(getContentResolver(), "bedtime_mode", -1);
+            boolean isBedtime = (samsungBedtime == 1) || (aospBedtime == 1);
+
+            modeSummary = dndStr + " • " + ringerStr + (isBedtime ? " • Bedtime" : "");
 
             // Check node connectivity
             Wearable.getNodeClient(MainActivity.this).getConnectedNodes()
                     .addOnSuccessListener(nodes -> {
+                        if (isFinishing() || isDestroyed()) return;
                         isPhoneConnected = nodes != null && !nodes.isEmpty();
-                        notifyDataSetChanged();
+                        notifyDataSetChangedSafe();
                     })
                     .addOnFailureListener(e -> {
+                        if (isFinishing() || isDestroyed()) return;
                         isPhoneConnected = false;
-                        notifyDataSetChanged();
+                        notifyDataSetChangedSafe();
                     });
 
-            notifyDataSetChanged();
+            notifyDataSetChangedSafe();
+        }
+
+        private void notifyDataSetChangedSafe() {
+            if (recyclerView != null && recyclerView.isComputingLayout()) {
+                recyclerView.post(this::notifyDataSetChanged);
+            } else {
+                notifyDataSetChanged();
+            }
         }
 
         @Override

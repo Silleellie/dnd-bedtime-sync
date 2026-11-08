@@ -119,6 +119,7 @@ public class DNDNotificationService extends NotificationListenerService {
     @Override
     public void onInterruptionFilterChanged(int interruptionFilter) {
         Log.d(TAG, "Watch interruption filter changed to " + interruptionFilter);
+        MainActivity.notifyModeChanged(this);
 
         if (interruptionFilter == lastReceivedFilter) {
             Log.d(TAG, "Skipping echo DND filter broadcast from phone sync: " + interruptionFilter);
@@ -130,6 +131,8 @@ public class DNDNotificationService extends NotificationListenerService {
     }
 
     private synchronized void handleWatchRingerChange(int currentRinger) {
+        MainActivity.notifyModeChanged(this);
+
         if (currentRinger == lastReceivedRingerMode) {
             Log.d(TAG, "Skipping echo watch ringerMode from phone sync: " + currentRinger);
             lastReceivedRingerMode = -1;

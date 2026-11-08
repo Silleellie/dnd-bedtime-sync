@@ -95,6 +95,7 @@ public class DNDSyncListenerService extends WearableListenerService {
                 boolean bedtimeModeSuccess = changeBedtimeSetting(settingBedtimeStr, phoneSignal.bedtimeState);
                 if (bedtimeModeSuccess) {
                     Log.d(TAG, "Bedtime mode value toggled");
+                    MainActivity.notifyModeChanged(this);
                 } else {
                     Log.d(TAG, "Bedtime mode toggle failed");
                 }
@@ -122,6 +123,7 @@ public class DNDSyncListenerService extends WearableListenerService {
         if (mNotificationManager.isNotificationPolicyAccessGranted()) {
             mNotificationManager.setInterruptionFilter(newSetting);
             Log.d(TAG, "DND set to " + newSetting);
+            MainActivity.notifyModeChanged(this);
         } else {
             Log.d(TAG, "attempting to set DND but access not granted");
         }
@@ -142,6 +144,7 @@ public class DNDSyncListenerService extends WearableListenerService {
             try {
                 audioManager.setRingerMode(newSetting);
                 Log.d(TAG, "Watch ringer mode set to " + newSetting);
+                MainActivity.notifyModeChanged(this);
             } catch (Exception e) {
                 Log.e(TAG, "Error setting ringer mode on watch", e);
             }
