@@ -21,7 +21,7 @@ import com.aryan.wearmodesync.shared.WearSignal;
 public class DNDSyncListenerService extends WearableListenerService {
     private static final String TAG = "DNDSyncListenerService";
     private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
-    private static final String ALERT_CHANNEL_ID = "wearmodesync_battery_alerts";
+    private static final String ALERT_CHANNEL_ID = "wearmodesync_battery_alerts_v2";
     private static final int NOTIF_WATCH_BATTERY_ID = 2002;
 
     @Override
@@ -126,16 +126,19 @@ public class DNDSyncListenerService extends WearableListenerService {
             NotificationChannel channel = new NotificationChannel(
                     ALERT_CHANNEL_ID,
                     "Battery Alerts",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("Alerts for watch and phone battery states");
+            channel.enableVibration(true);
+            channel.setVibrationPattern(new long[]{0, 300, 150, 300});
             nm.createNotificationChannel(channel);
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.drawable.ic_battery_alert)
                     .setContentTitle("Watch Battery Low")
                     .setContentText("Galaxy Watch battery is at " + pct + "%")
-                    .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
                     .setAutoCancel(true);
 
             nm.notify(NOTIF_WATCH_BATTERY_ID, builder.build());

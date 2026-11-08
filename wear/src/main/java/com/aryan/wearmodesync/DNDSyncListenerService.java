@@ -20,7 +20,7 @@ import com.aryan.wearmodesync.shared.PhoneSignal;
 public class DNDSyncListenerService extends WearableListenerService {
     private static final String TAG = "DNDSyncListenerService";
     private static final String DND_SYNC_MESSAGE_PATH = "/wear-dnd-sync";
-    private static final String ALERT_CHANNEL_ID = "wear_battery_alerts";
+    private static final String ALERT_CHANNEL_ID = "wear_battery_alerts_v2";
     private static final int NOTIF_BATTERY_ALERT_ID = 3001;
 
     @Override
@@ -35,7 +35,7 @@ public class DNDSyncListenerService extends WearableListenerService {
             // Handle battery alerts from phone
             if (phoneSignal.batteryChargedAlert) {
                 Log.d(TAG, "Received phone fully charged alert");
-                postWatchAlertNotification("Phone Battery", "Phone battery fully charged");
+                postWatchAlertNotification("Phone Battery", "Phone battery fully charged", R.drawable.ic_battery_full);
                 vibrate();
                 return;
             }
@@ -43,7 +43,7 @@ public class DNDSyncListenerService extends WearableListenerService {
             if (phoneSignal.batteryLowAlert) {
                 int pct = phoneSignal.batteryPct != null ? phoneSignal.batteryPct : 15;
                 Log.d(TAG, "Received phone low battery alert: " + pct + "%");
-                postWatchAlertNotification("Phone Battery Low", "Phone battery is at " + pct + "%");
+                postWatchAlertNotification("Phone Battery Low", "Phone battery is at " + pct + "%", R.drawable.ic_battery_alert);
                 vibrate();
                 return;
             }
@@ -260,7 +260,7 @@ public class DNDSyncListenerService extends WearableListenerService {
                 && lowPowerBackDataOff && smConnectivityDisable;
     }
 
-    private void postWatchAlertNotification(String title, String text) {
+    private void postWatchAlertNotification(String title, String text, int iconResId) {
         try {
             NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return;
@@ -271,13 +271,15 @@ public class DNDSyncListenerService extends WearableListenerService {
                     NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("Phone battery state notifications");
+            channel.enableVibration(true);
             nm.createNotificationChannel(channel);
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(iconResId)
                     .setContentTitle(title)
                     .setContentText(text)
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
+                    .setDefaults(NotificationCompat.DEFAULT_ALL)
                     .setAutoCancel(true);
 
             nm.notify(NOTIF_BATTERY_ALERT_ID, builder.build());

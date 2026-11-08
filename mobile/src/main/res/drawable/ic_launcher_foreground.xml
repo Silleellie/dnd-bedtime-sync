@@ -8,8 +8,8 @@
     <group
         android:scaleX="2.6"
         android:scaleY="2.6"
-        android:translateX="7.85"
-        android:translateY="7.04">
+        android:translateX="6.66"
+        android:translateY="7.05">
         <path
             android:fillColor="#FFFFFFFF"
             android:pathData="M7.912,19.047L9.425,17.238C9.531,17.111 9.72,17.094 9.848,17.2C9.861,17.211 9.873,17.223 9.884,17.236L11.421,19.045C11.528,19.172 11.512,19.361 11.386,19.468C11.332,19.514 11.263,19.54 11.192,19.54L8.142,19.54C7.976,19.54 7.842,19.405 7.842,19.24C7.842,19.169 7.867,19.101 7.912,19.047Z" />

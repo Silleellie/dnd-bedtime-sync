@@ -1,6 +1,6 @@
 <resources>
-    <string name="app_name">DNDSync</string>
-    <string name="app_version">v3.0</string>
+    <string name="app_name">Wear Sync</string>
+    <string name="app_version">v3.1</string>
     <string name="header_subtitle">Samsung Galaxy Watch Synchronizer</string>
     <string name="watch_connected">Galaxy Watch Connected</string>
     <string name="searching_watch">Searching for Watch…</string>

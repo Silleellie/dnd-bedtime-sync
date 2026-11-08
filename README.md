@@ -1,4 +1,4 @@
-# DNDSync (wear-mode-sync)
+# Wear Sync (wear-mode-sync)
 
 > **Upstream Attribution & Lineage**
 >
@@ -7,7 +7,24 @@
 > - **[@Silleellie](https://github.com/Silleellie)** for the DND-Bedtime-Sync app and ecosystem
 > - **[@DreadedLama](https://github.com/DreadedLama)** for the initial Bedtime mode implementation
 
-**wear-mode-sync (v3.1)** is re-architected for modern Android (API 36 / Android 14–16) and Wear OS 5/6, featuring a **Samsung One UI Watch** native interface, continuous rotary bezel physics, bidirectional sound & battery alerts, and an ultra-fast 6-byte binary protocol.
+**wear-mode-sync (v3.1)** is re-architected for modern Android (API 36 / Android 14–16) and Wear OS 5/6, featuring a **Samsung One UI Watch** native interface, bidirectional sound & battery alerts, and an ultra-fast binary protocol.
+
+---
+
+## Screenshots
+
+### Mobile App 
+<p float="left">
+  <img src="images/mobile_1.jpg" width="260" />
+  <img src="images/mobile_2.jpg" width="260" />
+  <img src="images/mobile_3.jpg" width="260" />
+</p>
+
+### Wear OS App (Samsung One UI Watch)
+<p float="left">
+  <img src="images/wear_1.png" width="200" />
+  <img src="images/wear_2.png" width="200" />
+</p>
 
 ---
 
@@ -42,52 +59,36 @@ flowchart TD
 
 ---
 
-## Key Features & Technical Specifications
+## Key Features
 
-### 1. Samsung One UI Watch Interface & Bezel Physics
-- **Accelerated Edge Horizon Curve**: Custom `OneUILayoutCallback` provides a stable central reading plateau ($d \le 0.42$: $1.0\times$ scale, $1.0$ alpha) and an accelerated non-linear quadratic drop-off ($p^2$) at upper/lower horizons down to $0.70\times$ scale and $0.62$ alpha, keeping cards legible as they tuck into the bezel.
-- **Continuous Rotary Bezel Glide**: Intercepts `SOURCE_ROTARY_ENCODER` and `detent_bezel` events via `setOnGenericMotionListener`. Instead of abrupt 140px jumpy teleportations, rotary turns glide smoothly using a velocity-damped `smoothScrollBy` with `DecelerateInterpolator(1.2f)`.
-- **Samsung One UI Pill Card Geometry**: Standardized 54dp card height, 28dp pill corner radius (pure semi-circular ends), 40dp circular icon badges, and 6dp side margins (456px width across 480px watch display).
-- **Performance Advantage**: Pure native Java/XML `WearableRecyclerView` preserves a minimal 20MB RAM footprint (vs 55MB on Compose) and a 100ms cold start time with 60 FPS scrolling.
-
-- **Do Not Disturb**: 1:1 mathematical vector circle (`ic_do_not_disturb.xml`) scaled to 46px.
-- **Bedtime Mode**: Native Bed + Crescent Moon vector (`ic_bedtime.xml`) on a deep nocturnal indigo badge (`#4527A0`).
-- **Sync Now**: Material pill button with circular refresh glyph and tactile haptic feedback.
-
-### 3. Bidirectional Battery Alert System
-- **Phone $\rightarrow$ Watch (100% Full Charge)**: When the phone finishes charging, the watch vibrates and posts:  
-  `🔋 Phone battery fully charged`
-- **Phone $\rightarrow$ Watch (Low Battery $\le 15\%$)**: When the phone drops to $\le 15\%$ while discharging, the watch alerts:  
-  `Phone Battery Low (15%)`
-- **Watch $\rightarrow$ Phone (Low Battery $\le 15\%$)**: When the watch drops to $\le 15\%$, the phone alerts:  
-  `Watch Battery Low — Galaxy Watch battery is at 15%`
-- All alerts feature dedicated toggles in the Phone settings.
-
-### 4. High-Performance Core Architecture
-- **Ultra-Fast 6-Byte Binary Protocol**: Reflection-free direct `ByteBuffer` serialization in `PhoneSignal` and `WearSignal`. Fits into a single Bluetooth LE packet frame without fragmentation; eliminated `commons-lang3` saving ~600KB uncompressed DEX.
-- **Meeting-Safe Zero Debounce**: Mode transitions (Alert Slider, DND, Volume) dispatch immediately with 0ms artificial debounce delay, ensuring phone and watch silence synchronously before meetings.
-- **Watch WakeLock Optimization**: Reduced `WakeLock` hold from 1500ms to 400ms. The watch CPU sleeps immediately while the hardware vibrator driver executes tactile buzzing natively.
-- **Bedtime Power Save Screen Timeout**: Automatically drops `SCREEN_OFF_TIMEOUT` to 10s upon entering Bedtime mode and restores 30s upon exit.
+- **Samsung One UI Watch Interface**: Native circular list scaling designed for round watch displays.
+- **Bidirectional Sound & Ringer Sync**: Synchronizes Ring, Vibrate, and Silent modes between phone and watch (supporting OnePlus Alert Slider and volume keys).
+- **Bedtime & DND Synchronization**: Automatic two-way or one-way mirroring of Bedtime mode and Do Not Disturb.
+- **Bidirectional Battery Alerts**: Notifications for phone full charge (100%) and low battery warnings (15%) across both devices.
+- **Lightweight Binary Protocol**: Direct 6-byte `ByteBuffer` serialization over Bluetooth LE with zero debounce delays and minimal battery impact.
+- **Aggressive OEM Protection**: Optional foreground service keep-alive to prevent OnePlus, Xiaomi, and Samsung background task killers from stopping sync.
 
 ---
 
 ## Device Compatibility
 
-- **Smartwatches**: Fully optimized and tested on **Samsung Galaxy Watch 7 LTE (Wear OS 6 / One UI 8 Watch)**, Galaxy Watch 6, 5, 4 series, and compatible Wear OS devices.
-- **Smartphones**: Tested on **OnePlus Nord 5 (Android 16, OxygenOS)** with physical Alert Slider, Google Pixel, Samsung Galaxy, and Xiaomi devices.
+- **Smartwatches**: Tested on **Samsung Galaxy Watch 7 LTE (Wear OS 6 / One UI 8 Watch)**. Compatible with Galaxy Watch 9, 8, 7, 6, 5, 4 series, and Wear OS devices.
+- **Smartphones**: Tested on **OnePlus Nord 5 (Android 16, OxygenOS)** with physical Alert Slider. Compatible with any non-Samsung Android smartphone (Android 10+) with Google Play Services.
 
 ---
 
-## Setup & ADB Instructions
+## Setup Instructions
 
 ### Phone Setup
 1. Download `dndsync-mobile.apk` from [Releases](https://github.com/iaryan08/wear-mode-sync/releases).
-2. Enable `USB Debugging` in Phone *Developer Options* and install via ADB:
-   ```bash
-   adb install -r dndsync-mobile.apk
-   ```
+2. **Install**:
+   - **Direct Install**: Open the downloaded APK file on your phone and tap **Install**.
+   - **Via ADB** (if enrolled in *Google Advanced Protection* or direct sideloading is blocked):
+     ```bash
+     adb install -r dndsync-mobile.apk
+     ```
 3. Open the app and grant **Notification & DND Access** by tapping the permission banner.
-   > *Note*: If Android grays out Notification Access, go to `Phone Settings -> Apps -> DNDSync -> 3 dots (top right) -> Allow Restricted Settings`.
+   > *Note*: If Android grays out Notification Access, go to `Phone Settings -> Apps -> Wear Sync -> 3 dots (top right) -> Allow Restricted Settings`.
 
 ### Watch Setup
 1. Connect your watch via **Wireless ADB**:
@@ -112,7 +113,9 @@ flowchart TD
      adb shell pm grant com.aryan.wearmodesync android.permission.WRITE_SECURE_SETTINGS
      ```
 4. Open the app on the watch and verify both permission cards display **Granted**.
-5. **Turn off ADB & Wireless debugging** on your watch to preserve battery life!
+
+> [!WARNING]
+> **Turn off ADB & Wireless debugging** on your watch once setup is complete to preserve battery life!
 
 ---
 
@@ -135,5 +138,5 @@ flowchart TD
 
 ---
 
-## License & Lineage
-Licensed under the GNU General Public License v3.0. Upstream lineage: [Silleellie/dnd-bedtime-sync](https://github.com/Silleellie/dnd-bedtime-sync) and [rhaeus/dnd-sync](https://github.com/rhaeus/dnd-sync).
+## Attribution & Lineage
+This project is an open-source continuation and extension of [Silleellie/dnd-bedtime-sync](https://github.com/Silleellie/dnd-bedtime-sync) and [rhaeus/dnd-sync](https://github.com/rhaeus/dnd-sync). Full credit and attribution for original concepts and base architecture belong to [@rhaeus](https://github.com/rhaeus), [@Silleellie](https://github.com/Silleellie), and [@DreadedLama](https://github.com/DreadedLama).
