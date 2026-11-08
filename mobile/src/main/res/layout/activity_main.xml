@@ -18,7 +18,7 @@
         <com.google.android.material.appbar.CollapsingToolbarLayout
             android:id="@+id/collapsing_toolbar"
             android:layout_width="match_parent"
-            android:layout_height="120dp"
+            android:layout_height="100dp"
             app:layout_scrollFlags="scroll|exitUntilCollapsed|snap"
             app:title="@string/app_name"
             app:expandedTitleGravity="bottom|start"
