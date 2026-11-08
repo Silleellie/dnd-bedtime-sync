@@ -44,7 +44,7 @@ public class DNDNotificationService extends NotificationListenerService {
     // Dedicated single-thread worker to eliminate thread creation churn & GC spikes
     private static final ExecutorService SYNC_EXECUTOR = Executors.newSingleThreadExecutor();
 
-    // Foreground service constants — keep o-kill away on OEM devices (OnePlus Athena, etc.)
+    // Foreground service constants — keep service active on aggressive OEM devices
     private static final int FGS_NOTIFICATION_ID = 1001;
     private static final String FGS_CHANNEL_ID   = "wearmodesync_persistent";
 
@@ -257,7 +257,7 @@ public class DNDNotificationService extends NotificationListenerService {
     /**
      * Called when Android's NotificationListenerService binding is established.
      * We immediately promote this process to a connectedDevice foreground service so that
-     * OEM background killers (OnePlus Athena / o-kill, Xiaomi MIUI, etc.) cannot evict it.
+     * OEM background killers cannot evict it.
      * This runs no extra CPU work — the process stays parked in epoll_wait until a DND event fires.
      */
     @Override
@@ -290,16 +290,16 @@ public class DNDNotificationService extends NotificationListenerService {
         try {
             NotificationChannel channel = new NotificationChannel(
                     FGS_CHANNEL_ID,
-                    "DNDSync",
+                    getString(R.string.app_name),
                     NotificationManager.IMPORTANCE_MIN  // silent, no sound, no pop-up
             );
-            channel.setDescription("Keeps modes in sync with your watch");
+            channel.setDescription(getString(R.string.fgs_notif_text));
             channel.setShowBadge(false);
             getSystemService(NotificationManager.class).createNotificationChannel(channel);
 
             Notification notification = new NotificationCompat.Builder(this, FGS_CHANNEL_ID)
-                    .setContentTitle("DNDSync active")
-                    .setContentText("Syncing modes with your watch")
+                    .setContentTitle(getString(R.string.app_name))
+                    .setContentText(getString(R.string.fgs_notif_text))
                     .setSmallIcon(R.mipmap.ic_launcher)
                     .setOngoing(true)
                     .setPriority(NotificationCompat.PRIORITY_MIN)
