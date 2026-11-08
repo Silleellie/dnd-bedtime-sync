@@ -1090,7 +1090,7 @@
                         android:layout_height="24dp"
                         android:layout_gravity="center"
                         android:contentDescription="Permission"
-                        android:src="@drawable/ic_do_not_disturb" />
+                        android:src="@drawable/ic_notification" />
 
                 </FrameLayout>
 
