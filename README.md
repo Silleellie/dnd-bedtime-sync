@@ -1,106 +1,142 @@
-# DNDSync
-This App was developed to enable synchronization between the smartphone and the **Galaxy Watch 4** of the
-**Do Not Disturb** (*DND*) and **Bedtime mode** from [Digital Wellbeing](https://play.google.com/store/apps/details?id=com.google.android.apps.wellbeing&hl=en_US).
-*DND* synchronization is only supported officially if using a Samsung phone with this smartwatch, Bedtime mode synchronization
-is only newly available for the newest Pixel Watch 2:
-* With this repo you get ***both***!
+# Wear Sync (wear-mode-sync)
 
-**Functionalities:**
-* *1-way sync* or a *2-way sync* of **DND**, depending on the preferences
-* When *DND* is activated on the phone, depending on the preferences, **Bedtime mode** can be activated to the watch!
-   * (Useful for **Xiaomi phones**, which don't have the *Digital Wellbeing app*)
-* Automatically toggle **Bedtime** mode for the watch whenever it is activated on the phone
-    * At night, when I charge my phone, bedtime mode on the phone is enabled and I wanted to sync and enable same mode on the watch
-* Automatically toggle **Power Saver** mode in combo with bedtime mode on the watch, whenever bedtime mode is synced from the phone
+> **Upstream Attribution & Lineage**
+>
+> This project is an open-source continuation and extension of [Silleellie/dnd-bedtime-sync](https://github.com/Silleellie/dnd-bedtime-sync). Full credit and appreciation go to the original creators:
+> - **[@rhaeus](https://github.com/rhaeus)** for the original DND-Sync architecture
+> - **[@Silleellie](https://github.com/Silleellie)** for the DND-Bedtime-Sync app and ecosystem
+> - **[@DreadedLama](https://github.com/DreadedLama)** for the initial Bedtime mode implementation
 
-Majority of the credits goes to [@rhaeus](https://github.com/rhaeus) for the initial developing of this app
-and to [@DreadedLama](https://github.com/DreadedLama) for the initial developing of a better bedtime mode implementation!
+**wear-mode-sync (v3.1)** is re-architected for modern Android (API 36 / Android 14–16) and Wear OS 5/6, featuring a **Samsung One UI Watch** native interface, bidirectional sound & battery alerts, and an ultra-fast binary protocol.
 
-**Tested on Nothing Phone (1) (*Android 13*) paired with a Galaxy Watch 4 (*40mm*, *Wear OS 4.0*)**
+---
 
-## Setup
+## Screenshots
 
-***Manual installation is required. The use of ADB is required. (*Don't worry, it's very easy!*)***
-
-* Download the latest `.apk` files from the ['Releases' section](https://github.com/Silleellie/dnd-bedtime-sync/releases) (`dndsync-mobile.apk` and `dndsync-wear.apk`)
-* Be sure to enable notifications for Bedtime mode of the Digital Wellbeing app on your phone (*They are by default*)
-    * This app knows that bedtime mode is activated when its notification pops up (since there's no public API for the *Digital Wellbeing* app)
-* If you don't have ADB, you can download a lightweight version from the [github release page](https://github.com/K3V1991/ADB-and-FastbootPlusPlus/releases) of *ADB and Fastboot++*
-    * In the following instructions, version **1.0.8** is used
-
-### Phone
-
+### Mobile App 
 <p float="left">
-  <img src="/images/mobile_1.png" width="300" />
-  <img src="/images/mobile_2.png" width="300" />
+  <img src="images/mobile_1.jpg" width="260" />
+  <img src="images/mobile_2.jpg" width="260" />
+  <img src="images/mobile_3.jpg" width="260" />
 </p>
 
-1. Install the app `dndsync-mobile.apk` on the phone via *adb*
-    * Enable `USB Debugging` in the *Developer Options* of your phone and the connect it to the PC
-    * Run `adb install dndsync-mobile.apk`
-2. Disconnect the phone from the PC
-    * Disable `USB Debugging` from the *Developer Options* of your phone
-3. Open the app and grant the permission for *DND Access* and *Bedtime Access* by clicking on the menu entry *DND-Bedtime Permission*. This will open the permission screen.
-    * This Permission is required so that the app can *read/write* DND state and *read* Bedtime mode. Without this permission, the sync will not work.
-4. Go back on the app and check that `DND-Bedtime Permission` now says **DND-Bedtime access granted** (*you may need to tap on the menu entry for it to update*)
+### Wear OS App (Samsung One UI Watch)
+<p float="left">
+  <img src="images/wear_1.png" width="200" />
+  <img src="images/wear_2.png" width="200" />
+</p>
 
+---
 
-### Watch
-<img src="/images/wear_1.png" width="200" />
+## Architecture & Service Topology
 
-Setting up the watch is a bit more *tricky* since the watch OS lacks the permission screen for DND access,
-but the permission needed can be **easily set via ADB**!
+```mermaid
+flowchart TD
+    subgraph Upstream["Upstream Base Repos (rhaeus / Silleellie)"]
+        U_DND["DND & Bedtime Only"] --> U_NLS["NotificationListenerService"]
+        U_AOSP["Android System Server"] -- binds & wakes on event --> U_NLS
+        U_WearMsg["Wearable MessageClient"]
+        note1["No Foreground Service on Stock AOSP\n(Silently killed by OEM task killers)"]
+    end
 
-Note: This is only tested on my **Galaxy Watch 4** and it might not work on other devices!
-1. Connect the watch to your computer via **adb** (watch and computer have to be in the *same network!*)
-    * Enable Developer Options: Go to `Settings -> About watch -> Software -> tap the Software version 5 times -> developer mode is on (you can disable it in the same way)`
-    * Enable `ADB debugging` and `Debug over WIFI` (in `Settings -> Developer Options`)
-    * Click on `Pair new device`
-    * Note the watch IP address and port, something like `192.168.0.100:5555` 
-    * Note also the pair key, something like `123456`
-    * Pair the watch with `adb pair 192.168.0.100:5555 123456` (***insert your value!***)
-    * Check that now your PC is listed under `Paired devices` and there's a text under it saying `Currently connected` 
-         * If not, perform `adb connect 192.168.0.100:6666` with the IP address and port listed in the `Debug over WIFI` screen
-2. Install the app `dndsync-wear.apk` on the watch
-    * Run `adb install dndsync-wear.apk`
-3. Grant permission for **DND access** (*This allows the app to listen to DND changes and to change the DND setting*)
-    * Run `adb shell cmd notification allow_listener it.silleellie.dndsync/it.silleellie.dndsync.DNDNotificationService`  
-4. Grant permission for **Secure Setting access** (*This allows the app to change BedTime mode setting on the watch*)
-    * Run `adb shell pm grant it.silleellie.dndsync android.permission.WRITE_SECURE_SETTINGS`
-5. Open the app on the watch, scroll to the permission section and check if both `DND Permission` 
-   and `Secure Settings Permission` say ***Granted*** (*you may need to tap on the menu entries for them to update*)
-6. ***IMPORTANT: Disable `ADB debugging` and `Debug over WIFI`, because these options drain the battery!***
+    subgraph CurrentApp["wear-mode-sync (v3.1)"]
+        C_DND["DND & Bedtime"] --> C_NLS["NotificationListenerService"]
+        C_Ringer["Alert Slider / Volume (Ringer Mode)"] --> C_Obs["In-Memory ContentObserver & BroadcastReceiver"]
+        C_FGS["connectedDevice Foreground Service\n(Optional User Toggle)"]
+        C_FGS -- Shields from OEM killers --> C_Obs
+        C_FGS -- Shields from OEM killers --> C_NLS
+        note2["Protects against OnePlus Athena / o-kill / MIUI / One UI\nGuarantees Alert Slider listener survival"]
+    end
 
-## Preferences options
+    style Upstream fill:#151b23,stroke:#30363d,stroke-width:1px
+    style CurrentApp fill:#0d1117,stroke:#58a6ff,stroke-width:1px
+```
 
-### Phone preferences
+### Can this app run without a Foreground Service?
+**Yes.** Under **Settings $\rightarrow$ Background & OEM Protection**, you can toggle **"Aggressive OEM Keep-Alive"**:
+- **Disabled**: Runs in pure background listener mode with zero persistent notifications (exact base repo behavior, ideal for stock Pixel/AOSP devices).
+- **Enabled**: Runs a silent `connectedDevice` foreground service (`FGS/99/200`) to guarantee physical Alert Slider and volume mode survival against aggressive OEM task killers (OnePlus Athena / `o-kill`, Xiaomi MIUI/HyperOS, Samsung One UI sleep mode).
 
-* With the ***Sync DND state to watch*** switch you can enable and disable the sync for *DND* mode.
-  If enabled, a *DND* change on the phone will lead to *DND* change on the watch.
-* With the ***Enable Bedtime mode on DND sync*** switch, you can choose to activate the bedtime mode on the watch
-  whenever DND is activated on the phone. Useful for all those phones missing the *Digital wellbeing* app
-* With the ***Sync Bedtime mode to watch*** switch you can enable and disable the sync for bedtime mode.
-  If enabled, when *Bedtime mode* is *enabled/disabled/paused* on the phone, it will be *enabled/disabled/paused* on the watch
-* If you enable the setting ***Enable Power Saver mode with Bedtime***, the watch will turn on *power save* mode whenever the *Bedtime Mode* is synced from the phone,
-  either due to *Sync Bedtime mode to watch* or to *Enable Bedtime mode on DND sync*
+---
 
-### Watch preferences
+## Key Features
 
-* If you enable the setting ***Sync DND state to phone***, a DND change on the watch will lead to a DND change on the phone
-* If you enable the setting ***Vibrate on sync***, the watch will vibrate whenever it receives a sync request from the phone
+- **Samsung One UI Watch Interface**: Native circular list scaling designed for round watch displays.
+- **Bidirectional Sound & Ringer Sync**: Synchronizes Ring, Vibrate, and Silent modes between phone and watch (supporting OnePlus Alert Slider and volume keys).
+- **Bedtime & DND Synchronization**: Automatic two-way or one-way mirroring of Bedtime mode and Do Not Disturb.
+- **Bidirectional Battery Alerts**: Notifications for phone full charge (100%) and low battery warnings (15%) across both devices.
+- **Lightweight Binary Protocol**: Direct 6-byte `ByteBuffer` serialization over Bluetooth LE with zero debounce delays and minimal battery impact.
+- **Aggressive OEM Protection**: Optional foreground service keep-alive to prevent OnePlus, Xiaomi, and Samsung background task killers from stopping sync.
 
-## To do (developers)
+---
 
-There are only two flags which the *Power saver mode* of this app does not enable but which are enabled
-by the *Power saver mode* of the watch itself:
+## Device Compatibility
 
-* Change screen timeout setting to *10 sec* when *Power Saver Mode* is enabled, just like it is if enabled via the watch
-* (Optional) For coherence, also the *wake up the watch by tilt* should be disabled via code. This is optional since it is 
-  disabled automatically whenever the low power mode is enabled and does not require setting manually the flag to 0, but still
+- **Smartwatches**: Tested on **Samsung Galaxy Watch 7 LTE (Wear OS 6 / One UI 8 Watch)**. Compatible with Galaxy Watch 9, 8, 7, 6, 5, 4 series, and Wear OS devices.
+- **Smartphones**: Tested on **OnePlus Nord 5 (Android 16, OxygenOS)** with physical Alert Slider. Compatible with any non-Samsung Android smartphone (Android 10+) with Google Play Services.
 
-Pull requests are welcome!
+---
 
-## Note
+## Setup Instructions
 
-If you are unable to "Allow Notification Access" to the mobile app and it is faded, go the apps section in Settings, open DNDSync app, click 3 dots on top right and grant "Allow Restricted Settings" access.
-Now you'll be able to grant the Notification access to mobile app.
+### Phone Setup
+1. Download `dndsync-mobile.apk` from [Releases](https://github.com/iaryan08/wear-mode-sync/releases).
+2. **Install**:
+   - **Direct Install**: Open the downloaded APK file on your phone and tap **Install**.
+   - **Via ADB** (if enrolled in *Google Advanced Protection* or direct sideloading is blocked):
+     ```bash
+     adb install -r dndsync-mobile.apk
+     ```
+3. Open the app and grant **Notification & DND Access** by tapping the permission banner.
+   > *Note*: If Android grays out Notification Access, go to `Phone Settings -> Apps -> Wear Sync -> 3 dots (top right) -> Allow Restricted Settings`.
+
+### Watch Setup
+1. Connect your watch via **Wireless ADB**:
+   - Enable Developer Options: `Settings -> About watch -> Software -> tap Software version 5 times`.
+   - In *Developer Options*, enable `ADB debugging` and `Wireless debugging`.
+   - Tap `Pair new device`, note the IP:Port and 6-digit Wi-Fi pairing code:
+     ```bash
+     adb pair <WATCH_IP>:<PAIRING_PORT> <PAIRING_CODE>
+     adb connect <WATCH_IP>:<CONNECT_PORT>
+     ```
+2. Install `dndsync-wear.apk`:
+   ```bash
+   adb install -r dndsync-wear.apk
+   ```
+3. Grant required permissions:
+   - **DND Access**:
+     ```bash
+     adb shell cmd notification allow_listener com.aryan.wearmodesync/com.aryan.wearmodesync.DNDNotificationService
+     ```
+   - **Bedtime & Power Saver Access**:
+     ```bash
+     adb shell pm grant com.aryan.wearmodesync android.permission.WRITE_SECURE_SETTINGS
+     ```
+4. Open the app on the watch and verify both permission cards display **Granted**.
+
+> [!WARNING]
+> **Turn off ADB & Wireless debugging** on your watch once setup is complete to preserve battery life!
+
+---
+
+## Preferences Guide
+
+### Phone Preferences
+- **Sync DND state**: 1-way or 2-way sync of Do Not Disturb mode.
+- **Sync Sound/Vibrate/Silent mode**: Synchronizes sound profiles across hardware Alert Sliders, volume keys, and watch ringer modes.
+- **Enable Bedtime mode on DND sync**: Automatically triggers Bedtime mode on the watch when DND is enabled on phones lacking the Digital Wellbeing app (e.g. Xiaomi).
+- **Sync Bedtime mode to watch**: Directly mirrors Digital Wellbeing Bedtime mode from phone to watch.
+- **Enable Power Saver with Bedtime**: Combines Bedtime mode with watch Power Saver mode.
+
+### Battery Preferences
+- **Phone battery fully charged**: Notifies watch when phone reaches 100%.
+- **Phone Low Battery Alert**: Alerts watch when phone drops to 15%.
+- **Watch Low Battery Alert**: Alerts phone when watch drops to 15%.
+
+### Background & OEM Protection
+- **Aggressive OEM Keep-Alive**: Toggle foreground service protection for OnePlus/Xiaomi/Samsung or pure background mode for Pixel/AOSP.
+
+---
+
+## Attribution & Lineage
+This project is an open-source continuation and extension of [Silleellie/dnd-bedtime-sync](https://github.com/Silleellie/dnd-bedtime-sync) and [rhaeus/dnd-sync](https://github.com/rhaeus/dnd-sync). Full credit and attribution for original concepts and base architecture belong to [@rhaeus](https://github.com/rhaeus), [@Silleellie](https://github.com/Silleellie), and [@DreadedLama](https://github.com/DreadedLama).

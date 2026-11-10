@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools"
-          package="it.silleellie.dndsync">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <uses-permission
             android:name="android.permission.WRITE_SECURE_SETTINGS"
             tools:ignore="ProtectedPermissions" />
@@ -19,7 +20,7 @@
         android:theme="@style/Theme.DNDSync"
         >
         <activity
-            android:name="it.silleellie.dndsync.MainActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -40,7 +41,7 @@
             android:value="false" />
 
         <service
-            android:name="it.silleellie.dndsync.DNDSyncListenerService"
+            android:name=".DNDSyncListenerService"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
@@ -53,9 +54,9 @@
             </intent-filter>
         </service>
 
-        <!-- grant permission with: adb shell cmd notification allow_listener it.silleellie.dndsync/it.silleellie.dndsync.DNDNotificationService -->
+        <!-- grant permission with: adb shell cmd notification allow_listener com.aryan.wearmodesync/com.aryan.wearmodesync.DNDNotificationService -->
         <service
-            android:name="it.silleellie.dndsync.DNDNotificationService"
+            android:name=".DNDNotificationService"
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">

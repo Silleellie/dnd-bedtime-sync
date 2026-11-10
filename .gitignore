@@ -21,3 +21,19 @@
 local.properties
 /wear/release/
 /mobile/release/
+
+# VS Code
+.vscode/
+
+# Signing keys & secrets
+*.jks
+*.keystore
+*.key
+local.properties
+
+# Build outputs
+*.apk
+*.aab
+
+# OS
+Thumbs.db

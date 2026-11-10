@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.DNDSync" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+    <!-- Base application theme with Samsung One UI AMOLED Dark aesthetics. -->
+    <style name="Theme.DNDSync" parent="Theme.MaterialComponents.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="colorPrimary">@color/primaryColor</item>
         <item name="colorPrimaryVariant">@color/primaryLightColor</item>
@@ -9,8 +9,41 @@
         <item name="colorSecondary">@color/secondaryColor</item>
         <item name="colorSecondaryVariant">@color/secondaryLightColor</item>
         <item name="colorOnSecondary">@color/secondaryTextColor</item>
-        <!-- Status bar color. -->
-        <item name="android:statusBarColor" >?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+
+        <!-- True AMOLED Black #000000 & Edge-to-Edge System Bars -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:windowBackground">@color/oneui_bg_black</item>
+        <item name="android:colorBackground">@color/oneui_bg_black</item>
+        <item name="colorSurface">@color/oneui_bg_black</item>
+
+        <!-- Switch Style -->
+        <item name="switchStyle">@style/OneUISwitch</item>
+    </style>
+
+    <style name="OneUISwitch" parent="Widget.AppCompat.CompoundButton.Switch">
+        <item name="track">@drawable/bg_switch_track</item>
+        <item name="android:thumb">@drawable/bg_switch_thumb</item>
+        <item name="showText">false</item>
+        <item name="android:showText">false</item>
+        <item name="android:splitTrack">false</item>
+        <item name="switchMinWidth">48dp</item>
+    </style>
+
+    <style name="TextAppearance.ExpandedHeader" parent="TextAppearance.MaterialComponents.Headline4">
+        <item name="android:textColor">@color/oneui_text_primary</item>
+        <item name="android:textSize">30sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="TextAppearance.CollapsedHeader" parent="TextAppearance.MaterialComponents.Headline6">
+        <item name="android:textColor">@color/oneui_text_primary</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
     </style>
 </resources>

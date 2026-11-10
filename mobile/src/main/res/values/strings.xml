@@ -1,34 +1,69 @@
 <resources>
-    <string name="app_name">DNDSync</string>
+    <string name="app_name">Wear Sync</string>
+    <string name="app_version">v3.1</string>
+    <string name="header_subtitle">Samsung Galaxy Watch Synchronizer</string>
+    <string name="watch_connected">Galaxy Watch Connected</string>
+    <string name="searching_watch">Searching for Watch…</string>
+    <string name="sync_now">Sync Now</string>
+    <string name="syncing">Syncing…</string>
+    <string name="tap_to_sync">Tap to push modes to watch</string>
+    <string name="sync_dispatched">Sync signal dispatched</string>
+    <string name="permission_granted">Granted</string>
+    <string name="permission_required">Action Required</string>
 
-    <!-- Preference Titles -->
+    <!-- Category Titles -->
     <string name="permission_header">Permissions</string>
-    <string name="phone_sync_header">Sync - Phone preferences</string>
-    <string name="watch_sync_header">Sync - Watch preferences</string>
+    <string name="phone_sync_header">Phone to Watch Sync</string>
+    <string name="watch_sync_header">Watch to Phone Sync</string>
+    <string name="battery_header">Battery Alerts</string>
+    <string name="advanced_header">Background &amp; OEM Protection</string>
 
     <!-- Phone Preferences -->
     <string name="sync_dnd_title">Sync DND state to watch</string>
-    <string name="sync_dnd_desc">If enabled, a DND change on the phone will lead to a DND change on the watch</string>
+    <string name="sync_dnd_desc">Mirror phone Do Not Disturb mode to watch</string>
+
+    <string name="sync_ringer_title">Sync Sound mode</string>
+    <string name="sync_ringer_desc">Mirror Ring, Vibrate, and Silent states with watch</string>
+
+    <string name="sync_dnd_as_bedtime_title">Enable Bedtime on DND sync</string>
+    <string name="sync_dnd_as_bedtime_desc">DND changes also toggle Bedtime mode on watch</string>
 
     <string name="sync_bedtime_title">Sync Bedtime mode to watch</string>
-    <string name="sync_bedtime_desc">Enable Bedtime mode on the watch whenever it is enabled on the phone</string>
+    <string name="sync_bedtime_desc">Mirror Digital Wellbeing bedtime to watch</string>
 
-    <string name="sync_dnd_as_bedtime_title">Enable Bedtime mode on DND sync</string>
-    <string name="sync_dnd_as_bedtime_desc">If enabled, DND changes on the phone will enable/disable Bedtime mode on the watch</string>
-
-    <string name="enable_power_saving_title">Enable Power Save mode with Bedtime</string>
-    <string name="enable_power_saving_desc">Bedtime mode will also enable power save mode on the watch</string>
+    <string name="enable_power_saving_title">Enable Power Save with Bedtime</string>
+    <string name="enable_power_saving_desc">Bedtime mode activates power save on watch</string>
 
     <!-- Watch Preferences -->
     <string name="watch_sync_dnd_title">Sync DND state to phone</string>
-    <string name="watch_sync_dnd_desc">If enabled, a DND change on the watch will lead to a DND change on the phone</string>
+    <string name="watch_sync_dnd_desc">Watch DND changes update phone</string>
+
+    <string name="watch_sync_ringer_title">Sync Sound mode to phone</string>
+    <string name="watch_sync_ringer_desc">Watch sound mode changes update phone</string>
 
     <string name="watch_vibrate_title">Vibrate on sync</string>
-    <string name="watch_vibrate_desc">If enabled, 1 small vibration for DND sync, 2 small vibrations for DND and Bedtime sync</string>
+    <string name="watch_vibrate_desc">Watch vibrates to confirm sync events</string>
 
     <!-- Permission Preferences -->
-    <string name="dnd_permission_title">DND-Bedtime Permission</string>
+    <string name="dnd_permission_title">Notification &amp; DND Access</string>
+    <string name="dnd_permission_desc">Required to monitor and mirror sound &amp; DND modes</string>
     <string name="dnd_permission_allowed">DND-Bedtime access granted</string>
     <string name="dnd_permission_not_allowed">DND-Bedtime access denied</string>
 
+    <!-- Background & Advanced Preferences -->
+    <string name="keep_alive_title">Aggressive OEM Keep-Alive</string>
+    <string name="keep_alive_desc">Runs a silent persistent foreground service to maintain mode sync and prevent background termination by OEM battery managers</string>
+
+    <!-- Battery Preferences -->
+    <string name="phone_charged_alert_title">Phone battery fully charged</string>
+    <string name="phone_charged_alert_desc">Notify watch when phone battery reaches 100%</string>
+    <string name="phone_low_battery_title">Phone Low Battery Alert</string>
+    <string name="phone_low_battery_desc">Notify watch when phone drops to 15% or lower</string>
+    <string name="watch_low_battery_title">Watch Low Battery Alert</string>
+    <string name="watch_low_battery_desc">Notify phone when watch drops to 15% or lower</string>
+
+    <!-- Foreground service notification (uses app_name so rename propagates automatically) -->
+    <string name="fgs_channel_name">@string/app_name</string>
+    <string name="fgs_notif_title" translatable="false">@string/app_name</string>
+    <string name="fgs_notif_text">Syncing modes with your watch</string>
 </resources>

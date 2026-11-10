@@ -1,20 +1,11 @@
-<androidx.core.widget.NestedScrollView
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.wear.widget.WearableRecyclerView
     xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/wearable_recycler_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:scrollbars="vertical"
-    android:paddingStart="8dp"
-    android:paddingEnd="8dp"
-    android:paddingTop="8dp"
-    android:paddingBottom="8dp"
-    >
-<!--    <androidx.wear.widget.SwipeDismissFrameLayout-->
-<!--        android:id="@+id/settings"-->
-<!--        android:layout_width="match_parent"-->
-<!--        android:layout_height="match_parent" />-->
-
-    <FrameLayout
-        android:id="@+id/settings"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
-</androidx.core.widget.NestedScrollView>
+    android:background="@android:color/black"
+    android:clipToPadding="false"
+    android:paddingTop="2dp"
+    android:paddingBottom="56dp"
+    android:scrollbars="none" />

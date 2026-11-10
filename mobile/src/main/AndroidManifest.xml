@@ -1,6 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="it.silleellie.dndsync">
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Required for the persistent foreground service that prevents o-kill on OEM devices -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Required companion permissions for FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE in Android 14+ (API 34+) -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
     <application
         android:allowBackup="true"
@@ -10,7 +20,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.DNDSync">
         <activity
-            android:name="it.silleellie.dndsync.MainActivity"
+            android:name=".MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -20,15 +30,16 @@
         </activity>
 
         <service
-            android:name="it.silleellie.dndsync.DNDNotificationService"
+            android:name=".DNDNotificationService"
             android:exported="true"
+            android:foregroundServiceType="connectedDevice"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
         <service
-            android:name="it.silleellie.dndsync.DNDSyncListenerService"
+            android:name=".DNDSyncListenerService"
             android:enabled="true"
             android:exported="true">
             <intent-filter>
